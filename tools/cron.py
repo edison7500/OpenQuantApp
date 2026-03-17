@@ -33,7 +33,6 @@ def get_scheduler():
 # ==========================================
 def daily_sync_job():
     engine = DataSyncEngine()
-    # symbols = ["AAPL", "TSLA", "NVDA", "BTC-USD", "^N225"]
     ac = adb.Arctic(DB_PATH)
     lib = ac.get_library(LIBRARY_NAME)
 

@@ -216,8 +216,9 @@ def main():
         st.header("参数设置")
         # symbol = st.text_input("输入标的代码", value="AAPL")
         portfolio = get_symbols()
-        symbol = st.selectbox("选择分析标的", options=portfolio, index=0)
+        symbol: str = st.selectbox("选择分析标的", options=portfolio, index=0)
 
+        symbol = symbol.upper()
         # --- 新增：日期范围选择器 ---
         now = datetime.datetime.now(tz=pytz.UTC)
         default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
@@ -232,7 +233,8 @@ def main():
 
         # 添加一个强制刷新按钮来清除缓存
         if st.button("🔄 强制刷新数据"):
-            update_database(symbol.upper())
+            # update_database(symbol.upper())
+            get_symbols.clear()
             load_and_process_data_with_range.clear()
 
     # col_main, col_right = st.columns([7, 3])
@@ -240,7 +242,6 @@ def main():
     if symbol and len(date_selection) == 2:
         start_date, end_date = date_selection
 
-        symbol = symbol.upper()
         with st.spinner(f"正在从 ArcticDB 加载 {symbol} 的数据..."):
             # hist = load_and_process_data(symbol, rsi_length)
             hist = load_and_process_data_with_range(
