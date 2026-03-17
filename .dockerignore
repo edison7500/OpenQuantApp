@@ -1,0 +1,6 @@
+.git
+.github
+.pre-commit-config.yaml
+docker-compose.yml
+Dockerfile
+Jenkinsfile

@@ -1,0 +1,14 @@
+services:
+  quant-app:
+    build: .
+    container_name: quant_dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - .:/app
+      - ./stock_db:/stock_db
+    environment:
+      - UV_LINK_MODE=copy
+      - DB_PATH=lmdb:///stock_db
+      - LIBRARY_NAME=financial_data
+    restart: always
