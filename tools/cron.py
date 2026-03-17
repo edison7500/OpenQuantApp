@@ -1,11 +1,19 @@
+import os
 import time
 from datetime import datetime
 
+import arcticdb as adb
 import streamlit as st
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
 
 from sync_engine import DataSyncEngine
+
+load_dotenv()
+
+DB_PATH = os.getenv("DB_PATH")
+LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 
 # ==========================================
@@ -25,8 +33,11 @@ def get_scheduler():
 # ==========================================
 def daily_sync_job():
     engine = DataSyncEngine()
-    symbols = ["AAPL", "TSLA", "NVDA", "BTC-USD", "^N225"]
-    for sym in symbols:
+    # symbols = ["AAPL", "TSLA", "NVDA", "BTC-USD", "^N225"]
+    ac = adb.Arctic(DB_PATH)
+    lib = ac.get_library(LIBRARY_NAME)
+
+    for sym in lib.list_symbols():
         # 这里逻辑要保持幂等性：只抓取缺失的数据
         engine.sync_symbol(sym)
         time.sleep(1)

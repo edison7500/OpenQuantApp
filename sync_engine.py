@@ -1,8 +1,11 @@
 import os
+from typing import List
+
 import arcticdb as adb
 import pandas as pd  # noqa
 import pandas_ta as ta  # noqa
 import yfinance as yf
+from arcticdb.options import LibraryOptions
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,7 +27,9 @@ class DataSyncEngine:
     def _ensure_libraries(self):
         for lib in self.libraries.values():
             if lib not in self.ac.list_libraries():
-                self.ac.create_library(lib)
+                self.ac.create_library(
+                    lib, library_options=LibraryOptions(dynamic_schema=True)
+                )
 
     def fetch_from_api(self, symbol, start_dt=None) -> pd.DataFrame:
         """
@@ -34,13 +39,13 @@ class DataSyncEngine:
         # 示例：import yfinance as yf; return yf.download(...)
         ticker = yf.Ticker(symbol)
         hist_data = ticker.history(
-            period="3d",
+            period="5d",
             interval="1m",
             auto_adjust=False,
         )
         return hist_data
 
-    def sync_symbol(self, symbol):
+    def sync_symbol(self, symbol) -> int:
         lib_1m = self.ac.get_library(self.libraries["1m"])
 
         # 1. 查找断点
@@ -65,7 +70,7 @@ class DataSyncEngine:
 
             # 4. 优雅的级联更新：合成高频率数据并存储
             self._resample_and_store(symbol, new_data_1m)
-            return len(new_data_1m)
+            return new_data_1m.shape[0]
         return 0
 
     def _resample_and_store(self, symbol: str, df_1m: pd.DataFrame):
@@ -101,9 +106,12 @@ class DataSyncEngine:
                     "retrieval_date": pd.Timestamp.now(),
                 }
                 if lib.has_symbol(symbol):
-                    lib.update(
-                        symbol, resampled.sort_index(), metadata=metadata
-                    )
+                    try:
+                        lib.update(
+                            symbol, resampled.sort_index(), metadata=metadata
+                        )
+                    except:
+                        pass
                 else:
                     lib.append(
                         symbol, resampled.sort_index(), metadata=metadata
@@ -112,5 +120,5 @@ class DataSyncEngine:
 
 if __name__ == "__main__":
     data_sync = DataSyncEngine()
-    # data_sync.sync_symbol("BTC-USD")
-    data_sync.sync_symbol("AMD")
+    data_sync.sync_symbol("IBIT")
+    # data_sync.sync_symbols()

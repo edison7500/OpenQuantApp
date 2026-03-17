@@ -1,5 +1,6 @@
 import datetime
 import os
+from typing import List
 
 import pandas as pd
 import pandas_ta as ta  # noqa
@@ -27,6 +28,14 @@ def get_arctic_library(library_name):
     ac = Arctic(DB_PATH)
     lib = ac.get_library(library_name, create_if_missing=True)
     return lib
+
+
+@st.cache_data(ttl=3600)
+def get_symbols() -> List:
+    lib = get_arctic_library(LIBRARY_NAME)
+    portfolio = lib.list_symbols()
+    portfolio.sort()
+    return portfolio
 
 
 @st.cache_data(ttl=3600)
@@ -195,13 +204,20 @@ def update_database(symbol: str):
 # 4. Streamlit UI 布局层
 # ==========================================
 def main():
-    st.set_page_config(page_title="Quant Dashboard", layout="wide")
+    st.set_page_config(
+        page_title="Quant Dashboard",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
     st.title("📈 量化投研 Dashboard")
 
     # 侧边栏交互
     with st.sidebar:
         st.header("参数设置")
-        symbol = st.text_input("输入标的代码", value="AAPL")
+        # symbol = st.text_input("输入标的代码", value="AAPL")
+        portfolio = get_symbols()
+        symbol = st.selectbox("选择分析标的", options=portfolio, index=0)
+
         # --- 新增：日期范围选择器 ---
         now = datetime.datetime.now(tz=pytz.UTC)
         default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
@@ -216,9 +232,10 @@ def main():
 
         # 添加一个强制刷新按钮来清除缓存
         if st.button("🔄 强制刷新数据"):
-            # update_database(symbol.upper())
+            update_database(symbol.upper())
             load_and_process_data_with_range.clear()
 
+    # col_main, col_right = st.columns([7, 3])
     # --- 确保用户选择了完整的起始和结束时间 ---
     if symbol and len(date_selection) == 2:
         start_date, end_date = date_selection
