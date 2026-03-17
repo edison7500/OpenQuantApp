@@ -1,6 +1,6 @@
 # 📈 Modern Quant Research & Trading Dashboard
 
-这是一个基于 Python 的现代量化投研系统方案。它集成了高性能时序数据库 ArcticDB、关系型数据库 PostgreSQL，并利用 Streamlit 与 Plotly 构建了交互式实时监控面板。系统内置了基于 APScheduler 的后台同步与策略扫描引擎，支持通过 Telegram 进行风险与机会预警。
+这是一个基于 Python 的现代量化投研系统方案。它集成了高性能时序数据库 ArcticDB、关系型数据库，并利用 Streamlit 与 Plotly 构建了交互式实时监控面板。系统内置了基于 APScheduler 的后台同步与策略扫描引擎，支持通过 Telegram 进行风险与机会预警。
 
 ## 🚀 技术栈特性
 
