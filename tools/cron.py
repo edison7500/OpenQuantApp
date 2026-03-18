@@ -53,29 +53,30 @@ def daily_sync_and_scan_job():
     for sym in lib.list_symbols():
         # 这里逻辑要保持幂等性：只抓取缺失的数据
         engine.sync_symbol(sym)
+
+        # # 2. 从数据库读取最新数据进行扫描
+        # df = engine.ac.get_library(f"{LIBRARY_NAME}.min60").read(sym).data
+        # df.ta.rsi(append=True)
+
+        # current_rsi = df["RSI_14"].iloc[-1]
+        # last_price = df["Close"].iloc[-1]
+
+        # # 3. 触发逻辑判断
+        # if current_rsi < 30:
+        #     notifier = TelegramNotifier(
+        #         st.secrets["telegram"]["token"],
+        #         st.secrets["telegram"]["chat_id"],
+        #     )
+        #     msg = (
+        #         f"🚨 *RSI 超卖预警*\n"
+        #         f"标的: `{sym}`\n"
+        #         f"当前价格: `{last_price}`\n"
+        #         f"RSI数值: `{current_rsi:.2f}`\n"
+        #         f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        #     )
+        #     notifier.notify(msg)
+
         time.sleep(1)
-
-        # 2. 从数据库读取最新数据进行扫描
-        df = engine.ac.get_library(f"{LIBRARY_NAME}.min60").read(sym).data
-        df.ta.rsi(append=True)
-
-        current_rsi = df["RSI_14"].iloc[-1]
-        last_price = df["Close"].iloc[-1]
-
-        # 3. 触发逻辑判断
-        if current_rsi < 30:
-            notifier = TelegramNotifier(
-                st.secrets["telegram"]["token"],
-                st.secrets["telegram"]["chat_id"],
-            )
-            msg = (
-                f"🚨 *RSI 超卖预警*\n"
-                f"标的: `{sym}`\n"
-                f"当前价格: `{last_price}`\n"
-                f"RSI数值: `{current_rsi:.2f}`\n"
-                f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-            )
-            notifier.notify(msg)
         print(f"[{datetime.now()}] 自动同步任务完成")
 
 
