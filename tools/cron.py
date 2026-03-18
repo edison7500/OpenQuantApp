@@ -56,7 +56,7 @@ def daily_sync_and_scan_job():
         time.sleep(1)
 
         # 2. 从数据库读取最新数据进行扫描
-        df = engine.ac.get_library("market_data.min60").read(sym).data
+        df = engine.ac.get_library(f"{LIBRARY_NAME}.min60").read(sym).data
         df.ta.rsi(append=True)
 
         current_rsi = df["RSI_14"].iloc[-1]
