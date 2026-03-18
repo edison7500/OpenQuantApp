@@ -1,7 +1,7 @@
 [project]
 name = "quant-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "基于 ArcticDB, Streamlit 和 Telegram 的量化分析系统"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -23,9 +23,9 @@ dependencies = [
 #     "ruff>=0.3.0",
 # ]
 
-# # 针对 Streamlit 的运行配置
+# 针对 Streamlit 的运行配置
 # [tool.uv.scripts]
-# dev = "streamlit run src/app.py"
+# dev = "streamlit run app.py"
 # sync = "python sync_engine.py"
 
 
