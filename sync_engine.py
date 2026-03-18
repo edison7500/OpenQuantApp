@@ -1,5 +1,4 @@
 import os
-from typing import List
 
 import arcticdb as adb
 import pandas as pd  # noqa
