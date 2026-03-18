@@ -3,7 +3,7 @@ import logging
 
 
 class TelegramNotifier:
-    def __init__(self, token: str, chat_id: str):
+    def __init__(self, token: str, chat_id: str) -> None:
         self.url = f"https://api.telegram.org/bot{token}/sendMessage"
         self.chat_id = chat_id
 
