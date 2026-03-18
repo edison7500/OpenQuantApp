@@ -70,7 +70,7 @@ def daily_sync_and_scan_job():
             )
             msg = (
                 f"🚨 *RSI 超卖预警*\n"
-                f"标的: `BTC/USDT`\n"
+                f"标的: `{sym}`\n"
                 f"当前价格: `{last_price}`\n"
                 f"RSI数值: `{current_rsi:.2f}`\n"
                 f"时间: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
