@@ -1,9 +1,11 @@
-import os
 import datetime
-import streamlit as st
+import os
+
 import pandas as pd
 import pandas_ta as ta  # noqa
+import streamlit as st
 from dotenv import load_dotenv
+
 from database.connections.arcticdb_conn import ArcticDBConnection
 
 load_dotenv()

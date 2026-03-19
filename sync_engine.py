@@ -2,8 +2,6 @@ import os
 
 import pandas as pd
 import pandas_ta as ta  # noqa
-
-# import arcticdb as adb
 import streamlit as st
 import yfinance as yf
 from arcticdb.options import LibraryOptions
@@ -113,7 +111,7 @@ class DataSyncEngine:
                         lib.update(
                             symbol, resampled.sort_index(), metadata=metadata
                         )
-                    except:
+                    except Exception:
                         pass
                 else:
                     lib.append(

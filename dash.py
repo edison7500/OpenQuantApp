@@ -7,7 +7,6 @@ import pandas_ta as ta  # noqa
 import pytz
 import streamlit as st
 import yfinance as yf
-
 from dotenv import load_dotenv
 
 import chart
