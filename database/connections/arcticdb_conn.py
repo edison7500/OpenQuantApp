@@ -1,12 +1,7 @@
-# import os
+from typing import List
 
-# import streamlit as st
 from arcticdb import Arctic
 from streamlit.connections import BaseConnection
-from dotenv import load_dotenv
-
-
-load_dotenv()
 
 
 class ArcticDBConnection(BaseConnection[Arctic]):
@@ -26,3 +21,6 @@ class ArcticDBConnection(BaseConnection[Arctic]):
 
     def get_library(self, library_name: str, create_if_missing=False):
         return self._instance.get_library(library_name, create_if_missing)
+
+    def list_libraries(self) -> List[str]:
+        return self._instance.list_libraries()

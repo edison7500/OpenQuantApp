@@ -1,13 +1,15 @@
 import os
 
-# import arcticdb as adb
-import streamlit as st
 import pandas as pd
 import pandas_ta as ta  # noqa
+
+# import arcticdb as adb
+import streamlit as st
 import yfinance as yf
 from arcticdb.options import LibraryOptions
-from database.arcticdb_connection import ArcticDBConnection
 from dotenv import load_dotenv
+
+from database.connections.arcticdb_conn import ArcticDBConnection
 
 load_dotenv()
 

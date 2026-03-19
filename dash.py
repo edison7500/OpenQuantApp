@@ -8,16 +8,14 @@ import pytz
 import streamlit as st
 import yfinance as yf
 
-# from arcticdb import Arctic
 from dotenv import load_dotenv
 
 import chart
-from database.arcticdb_connection import ArcticDBConnection
+from database.connections.arcticdb_conn import ArcticDBConnection
 
 load_dotenv()
 
 
-# DB_PATH = os.getenv("DB_PATH")
 LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 
@@ -33,7 +31,7 @@ def get_arctic_library(library_name):
 
 
 @st.cache_data(ttl=3600)
-def get_symbols() -> List:
+def get_symbols() -> List[str]:
     lib = get_arctic_library(LIBRARY_NAME)
     portfolio = lib.list_symbols()
     portfolio.sort()

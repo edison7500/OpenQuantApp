@@ -2,15 +2,14 @@ import os
 import time
 from datetime import datetime
 
-import arcticdb as adb
 import streamlit as st
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 
+from database.connections.arcticdb_conn import ArcticDBConnection
 from notifier.tg import TelegramNotifier
 from sync_engine import DataSyncEngine
-from database.arcticdb_connection import ArcticDBConnection
 
 load_dotenv()
 
