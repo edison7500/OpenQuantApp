@@ -8,12 +8,13 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 
-from sync_engine import DataSyncEngine
 from notifier.tg import TelegramNotifier
+from sync_engine import DataSyncEngine
+from database.arcticdb_connection import ArcticDBConnection
 
 load_dotenv()
 
-DB_PATH = os.getenv("DB_PATH")
+# DB_PATH = os.getenv("DB_PATH")
 LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 
@@ -34,7 +35,7 @@ def get_scheduler():
 # ==========================================
 def daily_sync_job():
     engine = DataSyncEngine()
-    ac = adb.Arctic(DB_PATH)
+    ac = st.connection("arcticdb", type=ArcticDBConnection)
     lib = ac.get_library(LIBRARY_NAME)
 
     for sym in lib.list_symbols():
@@ -47,7 +48,7 @@ def daily_sync_job():
 def daily_sync_and_scan_job():
     engine = DataSyncEngine()
     # 1. 先同步数据到 ArcticDB
-    ac = adb.Arctic(DB_PATH)
+    ac = st.connection("arcticdb", type=ArcticDBConnection)
     lib = ac.get_library(LIBRARY_NAME)
 
     for sym in lib.list_symbols():

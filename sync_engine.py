@@ -1,10 +1,12 @@
 import os
 
-import arcticdb as adb
-import pandas as pd  # noqa
+# import arcticdb as adb
+import streamlit as st
+import pandas as pd
 import pandas_ta as ta  # noqa
 import yfinance as yf
 from arcticdb.options import LibraryOptions
+from database.arcticdb_connection import ArcticDBConnection
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -15,7 +17,7 @@ LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 class DataSyncEngine:
     def __init__(self, uri=DB_PATH):
-        self.ac = adb.Arctic(uri)
+        self.ac = st.connection("arcticdb", type=ArcticDBConnection)
         self.libraries = {
             "1m": f"{LIBRARY_NAME}.min1",
             "1h": f"{LIBRARY_NAME}.min60",

@@ -7,15 +7,17 @@ import pandas_ta as ta  # noqa
 import pytz
 import streamlit as st
 import yfinance as yf
-from arcticdb import Arctic
+
+# from arcticdb import Arctic
 from dotenv import load_dotenv
 
 import chart
+from database.arcticdb_connection import ArcticDBConnection
 
 load_dotenv()
 
 
-DB_PATH = os.getenv("DB_PATH")
+# DB_PATH = os.getenv("DB_PATH")
 LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 
@@ -25,7 +27,7 @@ LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 @st.cache_resource
 def get_arctic_library(library_name):
     """Initialize and return ArcticDB connection"""
-    ac = Arctic(DB_PATH)
+    ac = st.connection("arcticdb", type=ArcticDBConnection)
     lib = ac.get_library(library_name, create_if_missing=True)
     return lib
 
