@@ -13,6 +13,7 @@ dependencies = [
     "plotly>=6.5.2",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.48",
+    "sqlmodel>=0.0.37",
     "streamlit>=1.54.0",
     "yfinance>=1.2.0",
 ]
