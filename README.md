@@ -38,8 +38,8 @@ uv sync
 token = "YOUR_BOT_TOKEN"
 chat_id = "YOUR_CHAT_ID"
 
-[database]
-arctic_uri = "lmdb://./market_data" # ArcticDB 依赖 Mongo
+[connections.arcticdb]
+uri = "lmdb://./data/stock_db"
 ```
 
 4. 使用 Docker Compose 一键启动
