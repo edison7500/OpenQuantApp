@@ -4,7 +4,7 @@
 
 ## 🚀 技术栈特性
 
--⚡️ 极速环境管理: 使用 uv 替代 pip，实现秒级的依赖安装与环境锁定。
+- ⚡️ 极速环境管理: 使用 uv 替代 pip，实现秒级的依赖安装与环境锁定。
 - 🗄️ 高性能时序存储: 采用 ArcticDB，专为 Pandas 优化的 C++ 底层存储，处理百万级数据无压力。
 - 🤖 无人值守同步: 集成 APScheduler，支持多时间尺度（1m/1h/Daily）的增量数据抓取与自动重采样。
 - 📈 深度技术分析: 基于 pandas_ta 计算 RSI、RVOL（相对成交量）及爆量突破信号。
@@ -19,11 +19,11 @@
 1. 克隆项目
 
 ```.bash
-git clone https://github.com/yourusername/quant-dashboard.git
-cd quant-dashboard
+git clone https://github.com/edison7500/OpenQuantApp.git
+cd OpenQuantApp
 ```
 
-2. 环境初始化 (使用 uv)
+2.  环境初始化 (使用 uv)
 确保你已安装 uv。如果未安装，请执行 ```curl -LsSf https://astral.sh/uv/install.sh | sh```.
 
 ```.bash

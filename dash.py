@@ -232,7 +232,7 @@ def main():
 
         # 添加一个强制刷新按钮来清除缓存
         if st.button("🔄 强制刷新数据"):
-            update_database(symbol.upper())
+            # update_database(symbol.upper())
             get_symbols.clear()
             load_and_process_data_with_range.clear()
 

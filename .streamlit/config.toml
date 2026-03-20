@@ -24,3 +24,6 @@ headingFontSizes = ["3rem", "2rem", "1rem"]
 
 [browser]
 gatherUsageStats = false
+
+[runner]
+enforceSerializableSessionState = true
