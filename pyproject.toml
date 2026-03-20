@@ -5,6 +5,7 @@ description = "基于 ArcticDB, Streamlit 和 Telegram 的量化分析系统"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "aiosqlite>=0.22.1",
     "apscheduler>=3.11.2",
     "arcticdb>=6.9.0",
     "numpy==2.2.6",
