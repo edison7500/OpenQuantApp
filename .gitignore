@@ -179,3 +179,4 @@ pyrightconfig.json
 .streamlit/secrets.toml
 stock_db
 market_data
+quant.db

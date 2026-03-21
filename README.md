@@ -24,6 +24,7 @@ cd OpenQuantApp
 ```
 
 2.  环境初始化 (使用 uv)
+
 确保你已安装 uv。如果未安装，请执行 ```curl -LsSf https://astral.sh/uv/install.sh | sh```.
 
 ```.bash
@@ -32,6 +33,7 @@ uv sync
 ```
 
 3. 配置 Secrets
+
 在 .streamlit/secrets.toml 中填入你的凭证：
 ```
 [telegram]
@@ -43,7 +45,8 @@ uri = "lmdb://./data/stock_db"
 ```
 
 4. 使用 Docker Compose 一键启动
-```
+
+```.bash
 docker-compose up -d --build
 ```
 

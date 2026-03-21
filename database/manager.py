@@ -1,30 +1,40 @@
-from sqlalchemy.ext.asyncio import create_async_engine
-from sqlalchemy.orm import sessionmaker
-from sqlmodel.ext.asyncio.session import AsyncSession
+from typing import List, Optional
+from sqlmodel import Session, SQLModel, create_engine, select
 
-from sqlmodel import SQLModel
-from database.models import MarketNews
+from database import models
 
 
 class DatabaseManager(object):
-    def __init__(self, db_url="sqlite+aiosqlite:///./quant_data.db"):
-        self.engine = create_async_engine(db_url, echo=False)
-        self.async_session = sessionmaker(
-            self.engine, class_=AsyncSession, expire_on_commit=False
-        )
+    def __init__(self, db_url="sqlite:///./data/quant.db"):
+        self.engine = create_engine(db_url, echo=False)
+        # self.async_session = sessionmaker(
+        # self.engine, class_=AsyncSession, expire_on_commit=False
+        # )
+        self.session = Session(self.engine)
 
-    async def init_db(self):
+    def init_db(self):
         """初始化表结构"""
-        async with self.engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
+        with self.engine.begin():
+            SQLModel.metadata.create_all(self.engine)
 
-    async def save_news(self, news: MarketNews):
+    def save_news(self, news: models.MarketNews):
         """异步保存新闻"""
-        async with self.async_session() as session:
+        with self.session() as session:
             session.add(news)
-            await session.commit()
+            session.commit()
 
-    async def get_active_symbols(self) -> List[str]:
+    def create_symbolmeta(self, symbol: models.SymbolMeta):
+        with self.session as session:
+            session.add(symbol)
+            session.commit()
+
+    def get_active_symbols(self) -> Optional[List[str]]:
         """获取需要同步的股票列表"""
         # 使用 SQLModel 的 select 语法...
-        pass
+        with self.session as session:
+            symbols = session.exec(select(models.SymbolMeta)).all()
+
+            if not symbols:
+                return
+            else:
+                return symbols
