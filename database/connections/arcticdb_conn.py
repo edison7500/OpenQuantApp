@@ -21,7 +21,14 @@ class ArcticDBConnection(BaseConnection[Arctic]):
 
     def get_library(self, timeframe: str = "D", create_if_missing=False):
         library_name = self._secrets.get("library")
-        return self._instance.get_library(library_name, create_if_missing)
+        libraries = {
+            "1m": f"{library_name}.min1",
+            "1h": f"{library_name}.min60",
+            "D": f"{library_name}",
+        }
+        return self._instance.get_library(
+            libraries[timeframe], create_if_missing
+        )
 
     def list_libraries(self) -> List[str]:
         return self._instance.list_libraries()

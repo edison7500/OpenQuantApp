@@ -39,7 +39,7 @@ def get_symbols() -> List[str]:
     # return portfolio
     conn = get_sql_connection()
     with conn.session as session:
-        statement = select(SymbolMeta.symbol).order_by(SymbolMeta.symbol)
+        statement = select(SymbolMeta).order_by(SymbolMeta.symbol)
         return session.execute(statement).scalars().all()
 
 
@@ -121,6 +121,14 @@ def update_database(symbol: str):
             lib.write(symbol, hist_data, metadata=metadata)
 
 
+def switch_tab(tab):
+    st.session_state.chart = tab
+
+
+def on_tab_change():
+    st.toast(f"You opened the {st.session_state.chart} tab.")
+
+
 # ==========================================
 # 4. Streamlit UI 布局层
 # ==========================================
@@ -135,9 +143,16 @@ def main():
     # 侧边栏交互
     with st.sidebar:
         st.header("参数设置")
-        # symbol = st.text_input("输入标的代码", value="AAPL")
-        portfolio = get_symbols()
-        symbol = st.selectbox("选择分析标的", options=portfolio, index=0)
+
+        portfolio = list(map(lambda x: x.symbol, get_symbols()))
+        if "symbol" not in st.session_state:
+            st.session_state.setdefault("symbol", portfolio[0])
+
+        symbol = st.selectbox(
+            "选择分析标的",
+            options=portfolio,
+            key="symbol",
+        )
 
         # --- 新增：日期范围选择器 ---
         now = datetime.datetime.now(tz=pytz.UTC)
@@ -149,7 +164,20 @@ def main():
             value=(default_start, now),
             max_value=now + datetime.timedelta(days=1),
         )
+
+        timeframe = st.select_slider(
+            "TimeFrame",
+            options=[
+                "1m",
+                "1h",
+                "D",
+            ],
+            value="D",
+        )
+
         rsi_length = st.slider("RSI 周期", min_value=5, max_value=30, value=14)
+
+        # auto_refresh = st.toggle("开启自动刷新", value=False)
 
         # 添加一个强制刷新按钮来清除缓存
         if st.button("🔄 强制刷新数据"):
@@ -165,7 +193,7 @@ def main():
         with st.spinner(f"正在从 ArcticDB 加载 {symbol} 的数据..."):
             # hist = load_and_process_data(symbol, rsi_length)
             hist = load_and_process_data_with_range(
-                symbol, start_date, end_date, rsi_length
+                symbol, start_date, end_date, timeframe, rsi_length
             )
         if not hist.empty:
             # --- Tabs 布局 ---
@@ -176,11 +204,16 @@ def main():
                     "📈 MACD 指标",
                     "🌀 布林带通道",
                     "📉 风险回撤",
-                ]
+                ],
+                width="stretch",
+                # key="chart",
             )
             with tab_rvol:
                 current_price = hist["Close"].iloc[-1]
-                st.metric("当前价格 (Current Price)", f"${current_price:.2f}")
+                # st.metric("当前价格 (Current Price)", f"${current_price:.2f}")
+                tab_rvol.metric(
+                    "当前价格 (Current Price)", f"${current_price:.2f}"
+                )
 
                 hist = process_data_with_rvol(hist)
                 fig = chart.create_rvol_chart(hist, symbol)
@@ -210,7 +243,6 @@ def main():
                 )
 
             with tab_drawdown:
-                st.subheader("策略风险分析")
                 # 计算关键指标
                 drawdown_series = calculate_drawdown(
                     hist["Close"].pct_change(fill_method=None)
@@ -218,9 +250,14 @@ def main():
                 max_dd = drawdown_series.min() * 100
                 current_dd = drawdown_series.iloc[-1] * 100
 
+                tab_drawdown.subheader("策略风险分析")
                 # 用 Streamlit Metrics 显示最大回撤
-                st.metric("最大回撤 (Max Drawdown)", f"{max_dd:.2f}%")
-                st.metric("当前回撤 (Current Drawdown)", f"{current_dd:.2f}%")
+                tab_drawdown.metric(
+                    "最大回撤 (Max Drawdown)", f"{max_dd:.2f}%"
+                )
+                tab_drawdown.metric(
+                    "当前回撤 (Current Drawdown)", f"{current_dd:.2f}%"
+                )
 
                 fig_drawdown = chart.create_drawdown_chart(hist, symbol)
                 st.plotly_chart(

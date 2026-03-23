@@ -20,6 +20,8 @@ class SymbolMeta(SQLModel, table=True):
 
 # --- 2. 市场新闻与向量模型 ---
 class MarketNews(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
+
     id: Optional[int] = Field(default=None, primary_key=True)
     symbol: str = Field(index=True, foreign_key="symbolmeta.symbol")
     timestamp: datetime = Field(index=True)
@@ -39,6 +41,8 @@ class MarketNews(SQLModel, table=True):
 
 # --- 3. 任务执行日志 ---
 class SyncTaskLog(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
+
     id: Optional[int] = Field(default=None, primary_key=True)
     task_name: str = Field(index=True)  # 如 "arctic_ohlcv_sync"
     status: str  # success, failed
