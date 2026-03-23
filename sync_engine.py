@@ -11,17 +11,17 @@ from database.connections.arcticdb_conn import ArcticDBConnection
 
 load_dotenv()
 
-DB_PATH = os.getenv("DB_PATH")
 LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 
 class DataSyncEngine:
-    def __init__(self, uri=DB_PATH):
+    def __init__(self):
         self.ac = st.connection("arcticdb", type=ArcticDBConnection)
+        self.library_name = self._secrets.get("library")
         self.libraries = {
-            "1m": f"{LIBRARY_NAME}.min1",
-            "1h": f"{LIBRARY_NAME}.min60",
-            "D": f"{LIBRARY_NAME}",
+            "1m": f"{self.library_name}.min1",
+            "1h": f"{self.library_name}.min60",
+            "D": f"{self.library_name}",
         }
         self._ensure_libraries()
 

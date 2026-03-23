@@ -75,6 +75,7 @@ def load_and_process_data_with_range(
     return df_final
 
 
+@st.cache_data(ttl=300)
 def calculate_drawdown(strategy_returns_series):
     """
     输入：策略收益率序列 (Returns)

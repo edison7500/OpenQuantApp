@@ -1,13 +1,14 @@
+import streamlit as st
 from typing import List, Optional
-
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, SQLModel, select
 
 from database import models
 
 
 class DatabaseManager(object):
-    def __init__(self, db_url="sqlite:///./data/quant.db"):
-        self.engine = create_engine(db_url, echo=False)
+    def __init__(self):
+        conn = st.connection("quant_db", type="sql")
+        self.engine = conn.engine
         self.session = Session(self.engine)
 
     def init_db(self):

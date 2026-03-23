@@ -3,60 +3,6 @@
 # # dependencies = []
 # # ///
 # from pprint import pprint
-# import yfinance as yf
-# import click
-
-# from database import models  # noqa
-# from database.manager import DatabaseManager
-
-
-# db = DatabaseManager()
-
-
-# @click.group()
-# def cli():
-#     """简单的用户管理 CLI 工具"""
-#     pass
-
-
-# @cli.command()
-# def init_db():
-#     """初始化数据库表结构"""
-#     # db = DatabaseManager()
-#     db.init_db()
-#     click.echo("✅ 数据库表初始化成功！")
-
-
-# @cli.command()
-# @click.option("--symbol", "-s", prompt="please symbol")
-# def fetch_symbolmeta(symbol: str):
-
-#     ticker = yf.Ticker(symbol.upper())
-#     info = ticker.info
-#     # pprint(info, indent=2)
-#     symbol = models.SymbolMeta(
-#         symbol=info["symbol"],
-#         name=info["displayName"],
-#         asset_type=info["typeDisp"],
-#         sector=info["sector"],
-#         industry=info["industry"],
-#         exchange=info["exchange"],
-#     )
-#     db.create_symbolmeta(symbol)
-#     click.echo(f"Ticker {symbol} 已成功保存。")
-
-
-# @cli.command()
-# def list_symbol():
-#     symbols = db.get_active_symbols()
-#     print(symbols)
-#     # for row in symbols:
-#     # print(row.symbol)
-
-
-# if __name__ == "__main__":
-#     cli()
-
 from typing import Annotated
 
 import typer
