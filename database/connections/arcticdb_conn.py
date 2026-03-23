@@ -19,7 +19,8 @@ class ArcticDBConnection(BaseConnection[Arctic]):
     def cursor(self) -> Arctic:
         return self._instance
 
-    def get_library(self, library_name: str, create_if_missing=False):
+    def get_library(self, timeframe: str = "D", create_if_missing=False):
+        library_name = self._secrets.get("library")
         return self._instance.get_library(library_name, create_if_missing)
 
     def list_libraries(self) -> List[str]:

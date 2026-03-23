@@ -1,5 +1,4 @@
 import datetime
-import os
 from typing import List
 
 import pandas as pd
@@ -7,118 +6,125 @@ import pandas_ta as ta  # noqa
 import pytz
 import streamlit as st
 import yfinance as yf
-from dotenv import load_dotenv
+from sqlmodel import select
 
 import chart
 from database.connections.arcticdb_conn import ArcticDBConnection
-
-load_dotenv()
-
-
-LIBRARY_NAME = os.getenv("LIBRARY_NAME")
+from database.models import SymbolMeta
+from indicators import calculate_drawdown, load_and_process_data_with_range
 
 
 # ==========================================
 # 1. 数据库连接层 (全局缓存)
 # ==========================================
 @st.cache_resource
-def get_arctic_library(library_name):
+def get_arctic_library(timeframe: str = "D"):
     """Initialize and return ArcticDB connection"""
     ac = st.connection("arcticdb", type=ArcticDBConnection)
-    lib = ac.get_library(library_name, create_if_missing=True)
+    lib = ac.get_library(timeframe, create_if_missing=True)
     return lib
+
+
+@st.cache_resource
+def get_sql_connection():
+    conn = st.connection("quant_db", type="sql")
+    return conn
 
 
 @st.cache_data(ttl=3600)
 def get_symbols() -> List[str]:
-    lib = get_arctic_library(LIBRARY_NAME)
-    portfolio = lib.list_symbols()
-    portfolio.sort()
-    return portfolio
+    # lib = get_arctic_library(LIBRARY_NAME)
+    # portfolio = lib.list_symbols()
+    # portfolio.sort()
+    # return portfolio
+    conn = get_sql_connection()
+    with conn.session as session:
+        statement = select(SymbolMeta.symbol).order_by(SymbolMeta.symbol)
+        return session.execute(statement).scalars().all()
 
 
-@st.cache_data(ttl=3600)
-def load_and_process_data_with_range(
-    symbol, start_date, end_date, rsi_length=14
-):
-    """
-    带时间范围的高效数据拉取与指标计算
-    """
-    lib = get_arctic_library(LIBRARY_NAME)  # 沿用之前的数据库连接函数
+# @st.cache_data(ttl=3600)
+# def load_and_process_data_with_range(
+#     symbol, start_date, end_date, rsi_length=14
+# ) -> pd.DataFrame:
+#     """
+#     带时间范围的高效数据拉取与指标计算
+#     """
+#     lib = get_arctic_library(LIBRARY_NAME)  # 沿用之前的数据库连接函数
 
-    # 1. 计算缓冲期 (Buffer)
-    # 假设周末/节假日停盘，往前推 rsi_length * 2 天作为缓冲，确保指标能在 start_date 算出来
-    buffer_days = rsi_length * 2
-    fetch_start = start_date - datetime.timedelta(days=buffer_days)
+#     # 1. 计算缓冲期 (Buffer)
+#     # 假设周末/节假日停盘，往前推 rsi_length * 2 天作为缓冲，确保指标能在 start_date 算出来
+#     buffer_days = rsi_length * 2
+#     fetch_start = start_date - datetime.timedelta(days=buffer_days)
 
-    try:
-        # 2. 核心：使用 ArcticDB 的 date_range 过滤
-        # 这会让 ArcticDB 只从底层存储下载该时间段的 Chunks，极大节省网络和内存
-        # 注意将 date 转换为 datetime，以匹配数据库索引
-        query_start = pd.to_datetime(fetch_start).tz_localize("UTC")
-        query_end = pd.to_datetime(end_date).tz_localize("UTC")
+#     try:
+#         # 2. 核心：使用 ArcticDB 的 date_range 过滤
+#         # 这会让 ArcticDB 只从底层存储下载该时间段的 Chunks，极大节省网络和内存
+#         # 注意将 date 转换为 datetime，以匹配数据库索引
+#         query_start = pd.to_datetime(fetch_start).tz_localize("UTC")
+#         query_end = pd.to_datetime(end_date).tz_localize("UTC")
 
-        item = lib.read(symbol, date_range=(query_start, query_end))
-        df = item.data
-    except Exception as e:  # noqa
-        return pd.DataFrame()
+#         item = lib.read(symbol, date_range=(query_start, query_end))
+#         df = item.data
+#     except Exception as e:  # noqa
+#         return pd.DataFrame()
 
-    if df.empty:
-        return df
+#     if df.empty:
+#         return df
 
-    # --- 核心：批量计算技术指标 ---
-    # 1. RSI
-    df.ta.rsi(length=14, append=True)
+#     # --- 核心：批量计算技术指标 ---
+#     # 1. RSI
+#     df.ta.rsi(length=14, append=True)
 
-    # 2. MACD (默认参数: fast=12, slow=26, signal=9)
-    # 这会生成类似 MACD_12_26_9, MACDh_12_26_9 (柱状图), MACDs_12_26_9 (信号线) 的列
-    df.ta.macd(append=True)
+#     # 2. MACD (默认参数: fast=12, slow=26, signal=9)
+#     # 这会生成类似 MACD_12_26_9, MACDh_12_26_9 (柱状图), MACDs_12_26_9 (信号线) 的列
+#     df.ta.macd(append=True)
 
-    # 3. 布林带 Bollinger Bands (默认参数: length=5, std=2)
-    # 这会生成 BBL_5_2.0 (下轨), BBM_5_2.0 (中轨), BBU_5_2.0 (上轨)
-    df.ta.bbands(length=20, std=2, append=True)
+#     # 3. 布林带 Bollinger Bands (默认参数: length=5, std=2)
+#     # 这会生成 BBL_5_2.0 (下轨), BBM_5_2.0 (中轨), BBU_5_2.0 (上轨)
+#     df.ta.bbands(length=20, std=2, append=True)
 
-    # 动态获取 MACD 柱状图的列名 (pandas_ta 生成的通常带参数后缀)
-    macd_hist_col = [c for c in df.columns if c.startswith("MACDh_")][0]
+#     # 动态获取 MACD 柱状图的列名 (pandas_ta 生成的通常带参数后缀)
+#     macd_hist_col = [c for c in df.columns if c.startswith("MACDh_")][0]
 
-    # 计算金叉 (Golden Cross) 和死叉 (Death Cross)
-    # 使用 shift(1) 获取前一天的值，这是一种非常地道的 pandas 写法
-    df["Buy_Signal"] = (df[macd_hist_col] > 0) & (
-        df[macd_hist_col].shift(1) <= 0
-    )
-    df["Sell_Signal"] = (df[macd_hist_col] < 0) & (
-        df[macd_hist_col].shift(1) >= 0
-    )
+#     # 计算金叉 (Golden Cross) 和死叉 (Death Cross)
+#     # 使用 shift(1) 获取前一天的值，这是一种非常地道的 pandas 写法
+#     df["Buy_Signal"] = (df[macd_hist_col] > 0) & (
+#         df[macd_hist_col].shift(1) <= 0
+#     )
+#     df["Sell_Signal"] = (df[macd_hist_col] < 0) & (
+#         df[macd_hist_col].shift(1) >= 0
+#     )
 
-    # 4. 截断数据：计算完毕后，把缓冲期的数据丢掉，只保留用户真正想看的部分
-    # 确保图表的 X 轴完全贴合用户的选择
-    mask = (
-        df.index.tz_convert("UTC")
-        >= pd.to_datetime(start_date).tz_localize("UTC")
-    ) & (
-        df.index.tz_convert("UTC")
-        <= pd.to_datetime(end_date).tz_localize("UTC")
-    )
-    df_final = df.loc[mask]
+#     # 4. 截断数据：计算完毕后，把缓冲期的数据丢掉，只保留用户真正想看的部分
+#     # 确保图表的 X 轴完全贴合用户的选择
+#     mask = (
+#         df.index.tz_convert("UTC")
+#         >= pd.to_datetime(start_date).tz_localize("UTC")
+#     ) & (
+#         df.index.tz_convert("UTC")
+#         <= pd.to_datetime(end_date).tz_localize("UTC")
+#     )
+#     df_final = df.loc[mask]
 
-    return df_final
+#     return df_final
 
 
-def calculate_drawdown(strategy_returns_series):
-    """
-    输入：策略收益率序列 (Returns)
-    输出：回撤百分比序列
-    """
-    # 1. 计算累计净值 (Cumulative Returns)
-    cumulative = (1 + strategy_returns_series).cumprod()
+# def calculate_drawdown(strategy_returns_series):
+#     """
+#     输入：策略收益率序列 (Returns)
+#     输出：回撤百分比序列
+#     """
+#     # 1. 计算累计净值 (Cumulative Returns)
+#     cumulative = (1 + strategy_returns_series).cumprod()
 
-    # 2. 计算历史最高滚动净值 (Running Maximum)
-    running_max = cumulative.cummax()
+#     # 2. 计算历史最高滚动净值 (Running Maximum)
+#     running_max = cumulative.cummax()
 
-    # 3. 计算回撤 (当前净值 / 历史最高 - 1)
-    drawdown = (cumulative / running_max) - 1
+#     # 3. 计算回撤 (当前净值 / 历史最高 - 1)
+#     drawdown = (cumulative / running_max) - 1
 
-    return drawdown
+#     return drawdown
 
 
 def add_breakout_signals(df, rvol_threshold=2.0, price_change_threshold=0.03):
@@ -180,7 +186,7 @@ def identify_fvg(df):
 
 
 def update_database(symbol: str):
-    lib = get_arctic_library(LIBRARY_NAME)
+    lib = get_arctic_library()
     ticker = yf.Ticker(symbol)
 
     metadata = {
@@ -215,9 +221,8 @@ def main():
         st.header("参数设置")
         # symbol = st.text_input("输入标的代码", value="AAPL")
         portfolio = get_symbols()
-        symbol: str = st.selectbox("选择分析标的", options=portfolio, index=0)
+        symbol = st.selectbox("选择分析标的", options=portfolio, index=0)
 
-        symbol = symbol.upper()
         # --- 新增：日期范围选择器 ---
         now = datetime.datetime.now(tz=pytz.UTC)
         default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
@@ -232,7 +237,7 @@ def main():
 
         # 添加一个强制刷新按钮来清除缓存
         if st.button("🔄 强制刷新数据"):
-            # update_database(symbol.upper())
+            update_database(symbol)
             get_symbols.clear()
             load_and_process_data_with_range.clear()
 

@@ -6,6 +6,8 @@ from sqlmodel import Field, Relationship, SQLModel
 
 # --- 1. 标的元数据模型 ---
 class SymbolMeta(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
+
     symbol: str = Field(primary_key=True, index=True)
     name: str
     asset_type: str = Field(default="stock")  # stock, crypto, index

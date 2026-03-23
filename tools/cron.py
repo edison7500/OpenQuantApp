@@ -35,7 +35,7 @@ def get_scheduler():
 def daily_sync_job():
     engine = DataSyncEngine()
     ac = st.connection("arcticdb", type=ArcticDBConnection)
-    lib = ac.get_library(LIBRARY_NAME)
+    lib = ac.get_library()
 
     for sym in lib.list_symbols():
         # 这里逻辑要保持幂等性：只抓取缺失的数据
@@ -48,7 +48,7 @@ def daily_sync_and_scan_job():
     engine = DataSyncEngine()
     # 1. 先同步数据到 ArcticDB
     ac = st.connection("arcticdb", type=ArcticDBConnection)
-    lib = ac.get_library(LIBRARY_NAME)
+    lib = ac.get_library()
 
     for sym in lib.list_symbols():
         # 这里逻辑要保持幂等性：只抓取缺失的数据

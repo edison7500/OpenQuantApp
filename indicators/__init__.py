@@ -1,27 +1,21 @@
 import datetime
-import os
 
 import pandas as pd
 import pandas_ta as ta  # noqa
 import streamlit as st
-from dotenv import load_dotenv
 
 from database.connections.arcticdb_conn import ArcticDBConnection
-
-load_dotenv()
-
-LIBRARY_NAME = os.getenv("LIBRARY_NAME")
 
 
 @st.cache_data(ttl=3600)
 def load_and_process_data_with_range(
-    symbol, start_date, end_date, timeframe="daily", rsi_length=14
+    symbol, start_date, end_date, timeframe="D", rsi_length=14
 ):
     """
     带时间范围的高效数据拉取与指标计算
     """
     ac = st.connection("arcticdb", type=ArcticDBConnection)
-    lib = ac.get_library(LIBRARY_NAME)  # 沿用之前的数据库连接函数
+    lib = ac.get_library(timeframe)  # 沿用之前的数据库连接函数
 
     # 1. 计算缓冲期 (Buffer)
     # 假设周末/节假日停盘，往前推 rsi_length * 2 天作为缓冲，确保指标能在 start_date 算出来

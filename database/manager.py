@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from database import models
@@ -7,9 +8,6 @@ from database import models
 class DatabaseManager(object):
     def __init__(self, db_url="sqlite:///./data/quant.db"):
         self.engine = create_engine(db_url, echo=False)
-        # self.async_session = sessionmaker(
-        # self.engine, class_=AsyncSession, expire_on_commit=False
-        # )
         self.session = Session(self.engine)
 
     def init_db(self):
@@ -32,7 +30,10 @@ class DatabaseManager(object):
         """获取需要同步的股票列表"""
         # 使用 SQLModel 的 select 语法...
         with self.session as session:
-            symbols = session.exec(select(models.SymbolMeta)).all()
+            statement = select(models.SymbolMeta).where(
+                models.SymbolMeta.is_active
+            )
+            symbols = session.exec(statement).all()
 
             if not symbols:
                 return

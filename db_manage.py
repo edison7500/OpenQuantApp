@@ -2,7 +2,7 @@
 # # requires-python = ">=3.12"
 # # dependencies = []
 # # ///
-from pprint import pprint
+# from pprint import pprint
 # import yfinance as yf
 # import click
 
@@ -57,12 +57,12 @@ from pprint import pprint
 # if __name__ == "__main__":
 #     cli()
 
-import typer
 from typing import Annotated
+
+import typer
+import yfinance as yf
 from rich.console import Console
 from rich.table import Table
-
-import yfinance as yf
 
 from database import models  # noqa
 from database.manager import DatabaseManager
@@ -81,13 +81,12 @@ def init():
 
 
 @app.command()
-def add_monitor_symbol(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
+def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
     """
     添加需要监控的 Symbol， 并通过 yfinance 获取原信息
     """
     ticker = yf.Ticker(symbol.upper())
     info = ticker.info
-    # pprint(info, indent=2)
 
     if "displayName" in info:
         name = info["displayName"]
