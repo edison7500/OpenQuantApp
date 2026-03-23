@@ -27,3 +27,4 @@ gatherUsageStats = false
 
 [runner]
 enforceSerializableSessionState = true
+
