@@ -39,8 +39,17 @@ def get_symbols() -> List[str]:
     # return portfolio
     conn = get_sql_connection()
     with conn.session as session:
-        statement = select(SymbolMeta).order_by(SymbolMeta.symbol)
+        statement = select(SymbolMeta.symbol).order_by(SymbolMeta.symbol)
         return session.execute(statement).scalars().all()
+
+
+def get_symbol_meta(symbol: str) -> SymbolMeta:
+    conn = get_sql_connection()
+    with conn.session as session:
+        statement = select(SymbolMeta).where(SymbolMeta.symbol == symbol)
+        obj: SymbolMeta = session.execute(statement).scalars().first()
+
+        return obj
 
 
 def add_breakout_signals(df, rvol_threshold=2.0, price_change_threshold=0.03):
@@ -138,13 +147,13 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    st.title("📈 量化投研 Dashboard")
+    # st.title("📈 量化投研 Dashboard")
 
     # 侧边栏交互
     with st.sidebar:
         st.header("参数设置")
 
-        portfolio = list(map(lambda x: x.symbol, get_symbols()))
+        portfolio = get_symbols()
         if "symbol" not in st.session_state:
             st.session_state.setdefault("symbol", portfolio[0])
 
@@ -281,10 +290,22 @@ def main():
             st.info("请选择一个完整的开始和结束日期范围。")
 
     with col_news:
-        st.subheader("实时新闻")
-        st.write("📰 市场今日开盘走势强劲...")
-        st.divider()
-        st.write("📰 某科技公司发布季度财报...")
+        symbol_meta = get_symbol_meta(symbol)
+
+        st.markdown(f"### {symbol_meta.name} 的详情")
+        m1, m2 = st.columns(2)
+        m1.metric("当前价格", "$152.34", "+1.2%")
+        m2.metric("成交量", "1.2M", "-5%")
+
+        st.caption("最后更新: 2026-03-24 10:00")
+        st.divider()  # 视觉分割线
+
+        # --- 下方新闻动态区 ---
+        st.markdown("### 相关新闻")
+        with st.container(height=500):  # 开启滚动模式，确保不挤占 Meta 区
+            st.info("💡 财报显示第三季度营收超预期...")
+            st.write("📰 行业分析师上调目标价至 $180...")
+            # ... 更多新闻条目
 
 
 main()
