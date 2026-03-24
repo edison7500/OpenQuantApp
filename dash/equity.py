@@ -139,12 +139,12 @@ def update_database(symbol: str):
             lib.write(symbol, hist_data, metadata=metadata)
 
 
-def switch_tab(tab):
-    st.session_state.chart = tab
+# def switch_tab(tab):
+#     st.session_state.chart = tab
 
 
-def on_tab_change():
-    st.toast(f"You opened the {st.session_state.chart} tab.")
+# def on_tab_change():
+#     st.toast(f"You opened the {st.session_state.chart} tab.")
 
 
 # ==========================================
