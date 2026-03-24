@@ -13,6 +13,10 @@ import chart
 from database.connections.arcticdb_conn import ArcticDBConnection
 from database.models import SymbolMeta
 from indicators import calculate_drawdown, load_and_process_data_with_range
+from utils.human_readable import (
+    format_human_readable,
+    format_percentage,
+)
 
 
 # ==========================================
@@ -297,7 +301,8 @@ def main():
     with col_news:
         symbol_meta = get_symbol_meta(symbol)
 
-        st.markdown(f"### {symbol_meta.name} 的详情")
+        # st.markdown(f"### {symbol_meta.name} 的详情")
+        st.subheader(f"{symbol_meta.name} ({symbol_meta.symbol})")
 
         with st.spinner(f"正在加载 {symbol} 的数据..."):
             ticker = yf.Ticker(symbol)
@@ -307,19 +312,32 @@ def main():
             m1.metric(
                 "当前价格",
                 f"${info['currentPrice']}",
-                f"+{info['regularMarketChangePercent']:.2}%",
+                # f"+{info['regularMarketChangePercent']:.2}%",
+                delta=format_percentage(info["regularMarketChangePercent"]),
             )
-            m2.metric("成交量", f"{info['volume']:,}", "-5%")
+            m2.metric("成交量", format_human_readable(info["volume"]))
 
-            st.caption("最后更新: 2026-03-24 10:00")
+            m3, m4 = st.columns(2)
+            m3.metric("总市值", format_human_readable(info["marketCap"]))
+            m4.metric("波动率", "1.24%")  # 示例
+
+            # st.caption("最后更新: 2026-03-24 10:00")
         st.divider()  # 视觉分割线
 
         # --- 下方新闻动态区 ---
-        st.markdown("### 相关新闻")
+        st.caption("最新市场动态")
         with st.container(height=500):  # 开启滚动模式，确保不挤占 Meta 区
-            st.info("💡 财报显示第三季度营收超预期...")
-            st.write("📰 行业分析师上调目标价至 $180...")
+            # st.info("💡 财报显示第三季度营收超预期...")
+            # st.write("📰 行业分析师上调目标价至 $180...")
             # ... 更多新闻条目
+            news = ticker.news
+            # pprint(news, indent=2)
+            for row in news:
+                st.write(
+                    f"**{row['content']['pubDate']}** {row['content']['title']}"
+                )
+                st.caption(f"{row['content']['summary']}")
+                st.divider()
 
 
 main()
