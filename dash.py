@@ -184,6 +184,7 @@ def main():
             update_database(symbol)
             get_symbols.clear()
             load_and_process_data_with_range.clear()
+            calculate_drawdown.clear()
 
     col_main, col_news = st.columns([3, 1])
 

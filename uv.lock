@@ -63,7 +63,7 @@ wheels = [
 
 [[package]]
 name = "arcticdb"
-version = "6.9.0"
+version = "6.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -76,15 +76,15 @@ dependencies = [
     { name = "pyyaml" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/37/ac1ea8cd64bc07d6b3ac940779afb81aed81ce21c12d9c2e2c884b5a0096/arcticdb-6.9.0-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:87d9c18ba86885609255fc0de775aebfd892f0e458f94c230e6cfe922f36acc5", size = 17500230, upload-time = "2026-02-02T13:23:34.209Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/49/da7a4feccfe0bb815d35467dcc7e4cec44fce39dd5b37b4462febabecbc9/arcticdb-6.9.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:fa95e2a490dd0491e2674462220b4e1945c359a3d6238031b5a34d74115e1d34", size = 18899150, upload-time = "2026-02-02T13:23:36.227Z" },
-    { url = "https://files.pythonhosted.org/packages/ec/85/1d9c3c3f51f83ff2b0e0b4919089137eac53b4ade87a873a97646e15837a/arcticdb-6.9.0-cp312-cp312-win_amd64.whl", hash = "sha256:d3e2de0eb36ee8a6b272a9fb07aa83bb5936d2718f332e320dbfd611bd4cebbd", size = 9060488, upload-time = "2026-02-02T13:23:38.137Z" },
-    { url = "https://files.pythonhosted.org/packages/e2/3e/2a6260f9f1a3ac1cc9088b16e5f129d7a8b3805c76ee35aad45439ecb2b2/arcticdb-6.9.0-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:fffae2ef7e5588b773fa19572814b006682c5a26b42824abdc5c02ecc2a89fc4", size = 17482780, upload-time = "2026-02-02T13:23:40.226Z" },
-    { url = "https://files.pythonhosted.org/packages/4c/2d/5f2487d1600aa402c657f49e70a9df0a5d83f7fb6e6b81d78c4fb8e37199/arcticdb-6.9.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d297326895190f7a144c57729a7936533c3a1a54eb0de3fe8dce5b70f6c855fe", size = 18878401, upload-time = "2026-02-02T13:23:42.189Z" },
-    { url = "https://files.pythonhosted.org/packages/bf/7c/c316f9521f7078763d80e561e4899c6e808e2223bc60c70ab888e76ae047/arcticdb-6.9.0-cp313-cp313-win_amd64.whl", hash = "sha256:bf79fb8ea11cd3282903526c995c83ee4ff1167246637b52fb8603a50bb974f2", size = 9041529, upload-time = "2026-02-02T13:23:43.886Z" },
-    { url = "https://files.pythonhosted.org/packages/44/06/86cd4972137b4389ed79ff714eefe1f47782877c5937af045e0c77ae95ec/arcticdb-6.9.0-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:9cf5f10d7f0cef0adeae4e96861638e555affc79e0c6fefa4e1a59a2d85fa921", size = 17462783, upload-time = "2026-02-02T13:23:45.904Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/16/f46118731fd6538e1dd25e46ee7e37968ce4b9d64e8d17e1a7b3fe6a6a6f/arcticdb-6.9.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:0935ed36127c440cb14a8ce80e1816054922ef1debcee8ca562f7442dc9896e2", size = 18857397, upload-time = "2026-02-02T13:23:49.115Z" },
-    { url = "https://files.pythonhosted.org/packages/89/33/7a698399f1e7a93af8fca6776b5bcff0de43146f680aca42cce4bef10159/arcticdb-6.9.0-cp314-cp314-win_amd64.whl", hash = "sha256:04780ef10b7b56f2fd3f186973367bda21f79d8239c5f12eb01a7402bd60a01c", size = 9281904, upload-time = "2026-02-02T13:23:50.978Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/85/74a720e472fd5782c7a3f6c0e72aabcd22ecbc682f02664a53c6967110ad/arcticdb-6.11.0-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:5ffee0e82ee8d8d0b0ff21e4ce6ba2f8d471b10e233c38d89dd36f5e1e982d02", size = 17999788, upload-time = "2026-03-23T13:04:43.083Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/b1/b1dc94164421aa0cbbf03c95a5175c5d1a338b0ec916b25510443fc4d676/arcticdb-6.11.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:8195dd69ac00dbe6d52da7ef31c476c4a62e066a37888af3a45c51ea59b52da2", size = 19450037, upload-time = "2026-03-23T13:04:46.278Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/f1/3a9dece04bcf102e36a67d342e39730731c6825fb88a81bef9f48a772cdd/arcticdb-6.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:959550e5ad916e1747290f86a9485d7d72523241bbaf89bea3376e5e6f4c7cca", size = 9213013, upload-time = "2026-03-23T13:04:48.962Z" },
+    { url = "https://files.pythonhosted.org/packages/51/ed/bfc3cff9b312f64802633316bb80481bbef45fea02c3861bc6eae322985f/arcticdb-6.11.0-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:f33beefb9fc5f443e2e24daaddb24a63d579424afc6b10d1f1e055ed8a3e4876", size = 17983395, upload-time = "2026-03-23T13:04:51.947Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/5e/d67b8223c8dbcb8a0550c5c86e2cf698f169f21bed4b1571900356fe7ffa/arcticdb-6.11.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ce6fdf045c403fa5ecfc877cc312f117b8f73b6a451ccfea81ef290222fd4f49", size = 19435743, upload-time = "2026-03-23T13:04:55.081Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/f2/f9c55ecd0af649779403ec2e0b9cac3b2ef647516987681b2d6bca95888e/arcticdb-6.11.0-cp313-cp313-win_amd64.whl", hash = "sha256:8986a5b7d28b480fc99eca94dfcc810b6ffc24f07a5a3e637f728c639fd08818", size = 9193712, upload-time = "2026-03-23T13:04:58.047Z" },
+    { url = "https://files.pythonhosted.org/packages/52/78/23a40786e2203eef77946fc016a3a6fc130633154efdec604e8b46ba4ea4/arcticdb-6.11.0-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:b0aafe369b093d9c52583ea30705ccf16bd656920c1270f34727c5e06c9b0aab", size = 17962803, upload-time = "2026-03-23T13:05:00.491Z" },
+    { url = "https://files.pythonhosted.org/packages/28/55/e717414e492918a1c041b74f0eecba84300acd83f4e4204081c976e71d5b/arcticdb-6.11.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:4cfe5b3d08dc1437ea7dfb668269b8a9e05642f8008eca820299db33dab9f46f", size = 19411580, upload-time = "2026-03-23T13:05:03.627Z" },
+    { url = "https://files.pythonhosted.org/packages/87/0f/c45a96ffa472db890e3c30b8f8cd277e9da623ad9760542c4ec80d198c9d/arcticdb-6.11.0-cp314-cp314-win_amd64.whl", hash = "sha256:3ab119252744ad696714279d7252f5da8c69e4f3a11cb6d0bc3cee06b161f4b1", size = 9444256, upload-time = "2026-03-23T13:05:06.919Z" },
 ]
 
 [[package]]
@@ -1080,7 +1080,7 @@ dependencies = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "apscheduler", specifier = ">=3.11.2" },
-    { name = "arcticdb", specifier = ">=6.9.0" },
+    { name = "arcticdb", specifier = ">=6.11.0" },
     { name = "numpy", specifier = "==2.2.6" },
     { name = "pandas", specifier = "==2.3.3" },
     { name = "pandas-ta", specifier = ">=0.4.71b0" },
