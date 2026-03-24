@@ -1,5 +1,6 @@
-import streamlit as st
 from typing import List, Optional
+
+import streamlit as st
 from sqlmodel import Session, SQLModel, select
 
 from database import models

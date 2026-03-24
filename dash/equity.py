@@ -1,4 +1,5 @@
 import datetime
+from pprint import pprint
 from typing import List
 
 import pandas as pd
@@ -39,7 +40,11 @@ def get_symbols() -> List[str]:
     # return portfolio
     conn = get_sql_connection()
     with conn.session as session:
-        statement = select(SymbolMeta.symbol).order_by(SymbolMeta.symbol)
+        statement = (
+            select(SymbolMeta.symbol)
+            .where(SymbolMeta.asset_type == "Equity")
+            .order_by(SymbolMeta.symbol)
+        )
         return session.execute(statement).scalars().all()
 
 
@@ -223,11 +228,11 @@ def main():
                     )
                 )
                 with tab_rvol:
-                    current_price = hist["Close"].iloc[-1]
-                    # st.metric("当前价格 (Current Price)", f"${current_price:.2f}")
-                    tab_rvol.metric(
-                        "当前价格 (Current Price)", f"${current_price:.2f}"
-                    )
+                    # current_price = hist["Close"].iloc[-1]
+                    # # st.metric("当前价格 (Current Price)", f"${current_price:.2f}")
+                    # tab_rvol.metric(
+                    #     "当前价格 (Current Price)", f"${current_price:.2f}"
+                    # )
 
                     hist = process_data_with_rvol(hist)
                     fig = chart.create_rvol_chart(hist, symbol)
@@ -293,11 +298,20 @@ def main():
         symbol_meta = get_symbol_meta(symbol)
 
         st.markdown(f"### {symbol_meta.name} 的详情")
-        m1, m2 = st.columns(2)
-        m1.metric("当前价格", "$152.34", "+1.2%")
-        m2.metric("成交量", "1.2M", "-5%")
 
-        st.caption("最后更新: 2026-03-24 10:00")
+        with st.spinner(f"正在加载 {symbol} 的数据..."):
+            ticker = yf.Ticker(symbol)
+            info = ticker.info
+            # pprint(info, indent=2)
+            m1, m2 = st.columns(2)
+            m1.metric(
+                "当前价格",
+                f"${info['currentPrice']}",
+                f"+{info['regularMarketChangePercent']:.2}%",
+            )
+            m2.metric("成交量", f"{info['volume']:,}", "-5%")
+
+            st.caption("最后更新: 2026-03-24 10:00")
         st.divider()  # 视觉分割线
 
         # --- 下方新闻动态区 ---
