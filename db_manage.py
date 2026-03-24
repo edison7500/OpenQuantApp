@@ -53,7 +53,7 @@ def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
 @app.command()
 def list():
     """显示所有监控的 Symbol"""
-    symbols = db.get_active_symbols()
+    symbols = db.get_active_symbolmetas()
     table = Table(title="Symbol list")
     table.add_column("symbol", justify="left", style="dim")
     table.add_column("name", style="magenta")

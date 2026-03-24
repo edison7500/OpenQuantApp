@@ -1,5 +1,6 @@
-import streamlit as st
 from typing import List, Optional
+
+import streamlit as st
 from sqlmodel import Session, SQLModel, select
 
 from database import models
@@ -31,12 +32,22 @@ class DatabaseManager(object):
         """获取需要同步的股票列表"""
         # 使用 SQLModel 的 select 语法...
         with self.session as session:
-            statement = select(models.SymbolMeta).where(
+            statement = select(models.SymbolMeta.symbol).where(
                 models.SymbolMeta.is_active
             )
-            symbols = session.exec(statement).all()
+            symbols = session.exec(statement).scalars().all()
 
             if not symbols:
                 return
             else:
                 return symbols
+
+    def get_active_symbolmetas(self) -> Optional[List[models.SymbolMeta]]:
+        with self.session as session:
+            statement = select(models.SymbolMeta).where(
+                models.SymbolMeta.is_active,
+            )
+            symbolmetas = session.exec(statement).all()
+
+            if symbolmetas:
+                return symbolmetas

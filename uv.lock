@@ -63,7 +63,7 @@ wheels = [
 
 [[package]]
 name = "arcticdb"
-version = "6.9.0"
+version = "6.11.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "attrs" },
@@ -76,15 +76,15 @@ dependencies = [
     { name = "pyyaml" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/be/37/ac1ea8cd64bc07d6b3ac940779afb81aed81ce21c12d9c2e2c884b5a0096/arcticdb-6.9.0-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:87d9c18ba86885609255fc0de775aebfd892f0e458f94c230e6cfe922f36acc5", size = 17500230, upload-time = "2026-02-02T13:23:34.209Z" },
-    { url = "https://files.pythonhosted.org/packages/2e/49/da7a4feccfe0bb815d35467dcc7e4cec44fce39dd5b37b4462febabecbc9/arcticdb-6.9.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:fa95e2a490dd0491e2674462220b4e1945c359a3d6238031b5a34d74115e1d34", size = 18899150, upload-time = "2026-02-02T13:23:36.227Z" },
-    { url = "https://files.pythonhosted.org/packages/ec/85/1d9c3c3f51f83ff2b0e0b4919089137eac53b4ade87a873a97646e15837a/arcticdb-6.9.0-cp312-cp312-win_amd64.whl", hash = "sha256:d3e2de0eb36ee8a6b272a9fb07aa83bb5936d2718f332e320dbfd611bd4cebbd", size = 9060488, upload-time = "2026-02-02T13:23:38.137Z" },
-    { url = "https://files.pythonhosted.org/packages/e2/3e/2a6260f9f1a3ac1cc9088b16e5f129d7a8b3805c76ee35aad45439ecb2b2/arcticdb-6.9.0-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:fffae2ef7e5588b773fa19572814b006682c5a26b42824abdc5c02ecc2a89fc4", size = 17482780, upload-time = "2026-02-02T13:23:40.226Z" },
-    { url = "https://files.pythonhosted.org/packages/4c/2d/5f2487d1600aa402c657f49e70a9df0a5d83f7fb6e6b81d78c4fb8e37199/arcticdb-6.9.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:d297326895190f7a144c57729a7936533c3a1a54eb0de3fe8dce5b70f6c855fe", size = 18878401, upload-time = "2026-02-02T13:23:42.189Z" },
-    { url = "https://files.pythonhosted.org/packages/bf/7c/c316f9521f7078763d80e561e4899c6e808e2223bc60c70ab888e76ae047/arcticdb-6.9.0-cp313-cp313-win_amd64.whl", hash = "sha256:bf79fb8ea11cd3282903526c995c83ee4ff1167246637b52fb8603a50bb974f2", size = 9041529, upload-time = "2026-02-02T13:23:43.886Z" },
-    { url = "https://files.pythonhosted.org/packages/44/06/86cd4972137b4389ed79ff714eefe1f47782877c5937af045e0c77ae95ec/arcticdb-6.9.0-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:9cf5f10d7f0cef0adeae4e96861638e555affc79e0c6fefa4e1a59a2d85fa921", size = 17462783, upload-time = "2026-02-02T13:23:45.904Z" },
-    { url = "https://files.pythonhosted.org/packages/b0/16/f46118731fd6538e1dd25e46ee7e37968ce4b9d64e8d17e1a7b3fe6a6a6f/arcticdb-6.9.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:0935ed36127c440cb14a8ce80e1816054922ef1debcee8ca562f7442dc9896e2", size = 18857397, upload-time = "2026-02-02T13:23:49.115Z" },
-    { url = "https://files.pythonhosted.org/packages/89/33/7a698399f1e7a93af8fca6776b5bcff0de43146f680aca42cce4bef10159/arcticdb-6.9.0-cp314-cp314-win_amd64.whl", hash = "sha256:04780ef10b7b56f2fd3f186973367bda21f79d8239c5f12eb01a7402bd60a01c", size = 9281904, upload-time = "2026-02-02T13:23:50.978Z" },
+    { url = "https://files.pythonhosted.org/packages/ff/85/74a720e472fd5782c7a3f6c0e72aabcd22ecbc682f02664a53c6967110ad/arcticdb-6.11.0-cp312-cp312-macosx_15_0_arm64.whl", hash = "sha256:5ffee0e82ee8d8d0b0ff21e4ce6ba2f8d471b10e233c38d89dd36f5e1e982d02", size = 17999788, upload-time = "2026-03-23T13:04:43.083Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/b1/b1dc94164421aa0cbbf03c95a5175c5d1a338b0ec916b25510443fc4d676/arcticdb-6.11.0-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:8195dd69ac00dbe6d52da7ef31c476c4a62e066a37888af3a45c51ea59b52da2", size = 19450037, upload-time = "2026-03-23T13:04:46.278Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/f1/3a9dece04bcf102e36a67d342e39730731c6825fb88a81bef9f48a772cdd/arcticdb-6.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:959550e5ad916e1747290f86a9485d7d72523241bbaf89bea3376e5e6f4c7cca", size = 9213013, upload-time = "2026-03-23T13:04:48.962Z" },
+    { url = "https://files.pythonhosted.org/packages/51/ed/bfc3cff9b312f64802633316bb80481bbef45fea02c3861bc6eae322985f/arcticdb-6.11.0-cp313-cp313-macosx_15_0_arm64.whl", hash = "sha256:f33beefb9fc5f443e2e24daaddb24a63d579424afc6b10d1f1e055ed8a3e4876", size = 17983395, upload-time = "2026-03-23T13:04:51.947Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/5e/d67b8223c8dbcb8a0550c5c86e2cf698f169f21bed4b1571900356fe7ffa/arcticdb-6.11.0-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ce6fdf045c403fa5ecfc877cc312f117b8f73b6a451ccfea81ef290222fd4f49", size = 19435743, upload-time = "2026-03-23T13:04:55.081Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/f2/f9c55ecd0af649779403ec2e0b9cac3b2ef647516987681b2d6bca95888e/arcticdb-6.11.0-cp313-cp313-win_amd64.whl", hash = "sha256:8986a5b7d28b480fc99eca94dfcc810b6ffc24f07a5a3e637f728c639fd08818", size = 9193712, upload-time = "2026-03-23T13:04:58.047Z" },
+    { url = "https://files.pythonhosted.org/packages/52/78/23a40786e2203eef77946fc016a3a6fc130633154efdec604e8b46ba4ea4/arcticdb-6.11.0-cp314-cp314-macosx_15_0_arm64.whl", hash = "sha256:b0aafe369b093d9c52583ea30705ccf16bd656920c1270f34727c5e06c9b0aab", size = 17962803, upload-time = "2026-03-23T13:05:00.491Z" },
+    { url = "https://files.pythonhosted.org/packages/28/55/e717414e492918a1c041b74f0eecba84300acd83f4e4204081c976e71d5b/arcticdb-6.11.0-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:4cfe5b3d08dc1437ea7dfb668269b8a9e05642f8008eca820299db33dab9f46f", size = 19411580, upload-time = "2026-03-23T13:05:03.627Z" },
+    { url = "https://files.pythonhosted.org/packages/87/0f/c45a96ffa472db890e3c30b8f8cd277e9da623ad9760542c4ec80d198c9d/arcticdb-6.11.0-cp314-cp314-win_amd64.whl", hash = "sha256:3ab119252744ad696714279d7252f5da8c69e4f3a11cb6d0bc3cee06b161f4b1", size = 9444256, upload-time = "2026-03-23T13:05:06.919Z" },
 ]
 
 [[package]]
@@ -290,6 +290,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/1a/91/6dd1910a212f2e8eafe57877bcf97748eb24849e1511a266687546066b8a/curl_cffi-0.13.0-cp39-abi3-musllinux_1_1_x86_64.whl", hash = "sha256:6d433ffcb455ab01dd0d7bde47109083aa38b59863aa183d29c668ae4c96bf8e", size = 8711908, upload-time = "2025-08-06T13:05:38.741Z" },
     { url = "https://files.pythonhosted.org/packages/6d/e4/15a253f9b4bf8d008c31e176c162d2704a7e0c5e24d35942f759df107b68/curl_cffi-0.13.0-cp39-abi3-win_amd64.whl", hash = "sha256:66a6b75ce971de9af64f1b6812e275f60b88880577bac47ef1fa19694fa21cd3", size = 1614510, upload-time = "2025-08-06T13:05:40.451Z" },
     { url = "https://files.pythonhosted.org/packages/f9/0f/9c5275f17ad6ff5be70edb8e0120fdc184a658c9577ca426d4230f654beb/curl_cffi-0.13.0-cp39-abi3-win_arm64.whl", hash = "sha256:d438a3b45244e874794bc4081dc1e356d2bb926dcc7021e5a8fef2e2105ef1d8", size = 1365753, upload-time = "2025-08-06T13:05:41.879Z" },
+]
+
+[[package]]
+name = "finnhub-python"
+version = "2.4.27"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/03/86/6bcf8c3514683198ad07160efd2426d4898275a3e11cdd3ebed659e75d7a/finnhub_python-2.4.27.tar.gz", hash = "sha256:c4402f481005bbb48f72acfa14d7c91e95af1b1c8367ba2f4457eebe4e61b611", size = 13613, upload-time = "2026-01-26T04:39:58.352Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ea/97/6b0e320f7825345ba5754d2da337086598bd04076aa18e0269812ef4f5f3/finnhub_python-2.4.27-py3-none-any.whl", hash = "sha256:2e5bd70ea9c41c077224d9eaebaa2b9c66e0445d4b4d2768fee20a56ce2af07f", size = 12013, upload-time = "2026-01-26T04:39:56.909Z" },
 ]
 
 [[package]]
@@ -706,11 +718,11 @@ wheels = [
 
 [[package]]
 name = "peewee"
-version = "3.19.0"
+version = "4.0.2"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/88/b0/79462b42e89764998756e0557f2b58a15610a5b4512fbbcccae58fba7237/peewee-3.19.0.tar.gz", hash = "sha256:f88292a6f0d7b906cb26bca9c8599b8f4d8920ebd36124400d0cbaaaf915511f", size = 974035, upload-time = "2026-01-07T17:24:59.597Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/9b/3439dcc3ed5138eb26f28fc208f958ca97b831f5f898b26d5354302e5df4/peewee-4.0.2.tar.gz", hash = "sha256:fd5d026ce7787c6cd3a84316e665a76b72c9c4e87322598c413f44604fa6c38d", size = 714081, upload-time = "2026-03-15T15:46:30.049Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/41/19c65578ef9a54b3083253c68a607f099642747168fe00f3a2bceb7c3a34/peewee-3.19.0-py3-none-any.whl", hash = "sha256:de220b94766e6008c466e00ce4ba5299b9a832117d9eb36d45d0062f3cfd7417", size = 411885, upload-time = "2026-01-07T17:24:58.33Z" },
+    { url = "https://files.pythonhosted.org/packages/4f/8e/943f57ce32eb005c7037110a759e2ebfb22e467a9a0efcb6d516c5bf00c6/peewee-4.0.2-py3-none-any.whl", hash = "sha256:86d5d16bcda5bbe017a108f6efc57abaac8d89277915541904542df9d2a7f25d", size = 143344, upload-time = "2026-03-15T15:46:28.778Z" },
 ]
 
 [[package]]
@@ -784,11 +796,11 @@ wheels = [
 
 [[package]]
 name = "platformdirs"
-version = "4.9.2"
+version = "4.9.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/1b/04/fea538adf7dbbd6d186f551d595961e564a3b6715bdf276b477460858672/platformdirs-4.9.2.tar.gz", hash = "sha256:9a33809944b9db043ad67ca0db94b14bf452cc6aeaac46a88ea55b26e2e9d291", size = 28394, upload-time = "2026-02-16T03:56:10.574Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/56/8d4c30c8a1d07013911a8fdbd8f89440ef9f08d07a1b50ab8ca8be5a20f9/platformdirs-4.9.4.tar.gz", hash = "sha256:1ec356301b7dc906d83f371c8f487070e99d3ccf9e501686456394622a01a934", size = 28737, upload-time = "2026-03-05T18:34:13.271Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/48/31/05e764397056194206169869b50cf2fee4dbbbc71b344705b9c0d878d4d8/platformdirs-4.9.2-py3-none-any.whl", hash = "sha256:9170634f126f8efdae22fb58ae8a0eaa86f38365bc57897a6c4f781d1f5875bd", size = 21168, upload-time = "2026-02-16T03:56:08.891Z" },
+    { url = "https://files.pythonhosted.org/packages/63/d7/97f7e3a6abb67d8080dd406fd4df842c2be0efaf712d1c899c32a075027c/platformdirs-4.9.4-py3-none-any.whl", hash = "sha256:68a9a4619a666ea6439f2ff250c12a853cd1cbd5158d258bd824a7df6be2f868", size = 21216, upload-time = "2026-03-05T18:34:12.172Z" },
 ]
 
 [[package]]
@@ -1063,6 +1075,7 @@ dependencies = [
     { name = "aiosqlite" },
     { name = "apscheduler" },
     { name = "arcticdb" },
+    { name = "finnhub-python" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "pandas-ta" },
@@ -1080,7 +1093,8 @@ dependencies = [
 requires-dist = [
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "apscheduler", specifier = ">=3.11.2" },
-    { name = "arcticdb", specifier = ">=6.9.0" },
+    { name = "arcticdb", specifier = ">=6.11.0" },
+    { name = "finnhub-python", specifier = ">=2.4.27" },
     { name = "numpy", specifier = "==2.2.6" },
     { name = "pandas", specifier = "==2.3.3" },
     { name = "pandas-ta", specifier = ">=0.4.71b0" },
@@ -1090,7 +1104,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.48" },
     { name = "sqlmodel", specifier = ">=0.0.37" },
     { name = "streamlit", specifier = ">=1.54.0" },
-    { name = "typer", extras = ["all"], specifier = ">=0.24.1" },
+    { name = "typer", specifier = ">=0.24.1" },
     { name = "yfinance", specifier = ">=1.2.0" },
 ]
 

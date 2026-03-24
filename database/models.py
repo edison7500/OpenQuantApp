@@ -10,7 +10,7 @@ class SymbolMeta(SQLModel, table=True):
 
     symbol: str = Field(primary_key=True, index=True)
     name: str
-    asset_type: str = Field(default="stock")  # stock, crypto, index
+    asset_type: str = Field(default="Equity")  # Equity, crypto, index
     sector: Optional[str] = None  # 板块
     industry: Optional[str] = None  # 行业
     exchange: Optional[str] = None  # 交易所
