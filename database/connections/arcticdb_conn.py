@@ -10,8 +10,8 @@ class ArcticDBConnection(BaseConnection[Arctic]):
     def _connect(self, **kwargs) -> Arctic:
         # 优先从 kwargs 获取，其次从 st.secrets 获取
         uri = (
-            kwargs.get("uri")
-            or self._secrets.get("uri")
+            kwargs.get("url")
+            or self._secrets.get("url")
             or "lmdb://./arctic_db"
         )
         return Arctic(uri)
