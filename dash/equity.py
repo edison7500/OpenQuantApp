@@ -10,13 +10,11 @@ import yfinance as yf
 from sqlmodel import select
 
 import chart
+from api.fetch_news import fetch_and_analyze
 from database.connections.arcticdb_conn import ArcticDBConnection
 from database.models import SymbolMeta
 from indicators import calculate_drawdown, load_and_process_data_with_range
-from utils.human_readable import (
-    format_human_readable,
-    format_percentage,
-)
+from utils.human_readable import format_human_readable, format_percentage
 
 
 # ==========================================
@@ -145,6 +143,70 @@ def update_database(symbol: str):
 
 # def on_tab_change():
 #     st.toast(f"You opened the {st.session_state.chart} tab.")
+
+
+@st.fragment
+def symbolmeta_sidebar_fragment(symbol: str):
+    ticker = yf.Ticker(symbol)
+    info = ticker.info
+    # pprint(info, indent=2)
+    m1, m2 = st.columns(2)
+    m1.metric(
+        "当前价格",
+        f"${info['currentPrice']}",
+        # f"+{info['regularMarketChangePercent']:.2}%",
+        delta=format_percentage(info["regularMarketChangePercent"]),
+    )
+    m2.metric("成交量", format_human_readable(info["volume"]))
+
+    m3, m4 = st.columns(2)
+    m3.metric("总市值", format_human_readable(info["marketCap"]))
+    m4.metric("波动率", "1.24%")  # 示例
+
+
+@st.fragment
+def news_sidebar_fragment(symbol: str):
+    st.subheader(f"📰 {symbol} 實時新聞")
+
+    # 局部刷新按鈕
+    if st.button("🔄 刷新新聞 (局部)"):
+        st.cache_data.clear()  # 清除緩存以獲取最新
+        # fragment 會自動處理局部重新渲染
+
+    with st.spinner("讀取中..."):
+        # df = get_cached_news(symbol)
+        df = fetch_and_analyze(symbol)
+
+    if not df.empty:
+        # 限制顯示數量以適應側邊欄高度
+        # for _, row in df.head(10).iterrows():
+        #     with st.container(border=True):
+        #         st.markdown(f"**{row['headline']}**")
+        #         st.caption(
+        #             f"{row['datetime'].strftime('%m-%d %H:%M')} | {row['source']}"
+        #         )
+        #         st.markdown(f"[閱讀原文]({row['url']})")
+        # 情感分布小统计
+        sentiment_counts = df["sentiment_label"].value_counts()
+        st.caption("过去7天情感分布")
+        st.bar_chart(sentiment_counts, horizontal=True, height=150)
+
+        st.divider()
+
+        # 新闻列表渲染
+        for _, row in df.head(12).iterrows():
+            with st.container(border=True):
+                # 用不同颜色显示标签
+                st.markdown(
+                    f"**{row['sentiment_label']}** (得分: {row['sentiment_score']:.2f})"
+                )
+                st.markdown(f"**{row['headline']}**")
+                st.caption(
+                    f"{row['source']} | {row['datetime'].strftime('%Y-%m-%d')}"
+                )
+                st.link_button("查看全文", row["url"], icon="🔗")
+    else:
+        st.info("暫無新聞")
 
 
 # ==========================================
@@ -305,21 +367,7 @@ def main():
         st.subheader(f"{symbol_meta.name} ({symbol_meta.symbol})")
 
         with st.spinner(f"正在加载 {symbol} 的数据..."):
-            ticker = yf.Ticker(symbol)
-            info = ticker.info
-            # pprint(info, indent=2)
-            m1, m2 = st.columns(2)
-            m1.metric(
-                "当前价格",
-                f"${info['currentPrice']}",
-                # f"+{info['regularMarketChangePercent']:.2}%",
-                delta=format_percentage(info["regularMarketChangePercent"]),
-            )
-            m2.metric("成交量", format_human_readable(info["volume"]))
-
-            m3, m4 = st.columns(2)
-            m3.metric("总市值", format_human_readable(info["marketCap"]))
-            m4.metric("波动率", "1.24%")  # 示例
+            symbolmeta_sidebar_fragment(symbol)
 
             # st.caption("最后更新: 2026-03-24 10:00")
         st.divider()  # 视觉分割线
@@ -327,17 +375,7 @@ def main():
         # --- 下方新闻动态区 ---
         st.caption("最新市场动态")
         with st.container(height=500):  # 开启滚动模式，确保不挤占 Meta 区
-            # st.info("💡 财报显示第三季度营收超预期...")
-            # st.write("📰 行业分析师上调目标价至 $180...")
-            # ... 更多新闻条目
-            news = ticker.news
-            # pprint(news, indent=2)
-            for row in news:
-                st.write(
-                    f"**{row['content']['pubDate']}** {row['content']['title']}"
-                )
-                st.caption(f"{row['content']['summary']}")
-                st.divider()
+            news_sidebar_fragment(symbol)
 
 
 main()
