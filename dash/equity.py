@@ -11,11 +11,13 @@ import yfinance as yf
 from sqlmodel import select
 
 import chart
-from api.fetch_news import fetch_and_analyze
+from dash.components.fragments import (
+    news_sidebar_fragment,
+    symbolmeta_sidebar_fragment,
+)
 from database.connections.arcticdb_conn import ArcticDBConnection
 from database.models import SymbolMeta
 from indicators import calculate_drawdown, load_and_process_data_with_range
-from utils.human_readable import format_human_readable, format_percentage
 
 
 # ==========================================
@@ -36,16 +38,12 @@ def get_sql_connection():
 
 
 @st.cache_data(ttl=3600)
-def get_symbols() -> List[str]:
-    # lib = get_arctic_library(LIBRARY_NAME)
-    # portfolio = lib.list_symbols()
-    # portfolio.sort()
-    # return portfolio
+def get_symbols(asset_type: str = "Equity") -> List[str]:
     conn = get_sql_connection()
     with conn.session as session:
         statement = (
             select(SymbolMeta.symbol)
-            .where(SymbolMeta.asset_type == "Equity")
+            .where(SymbolMeta.asset_type == asset_type)
             .order_by(SymbolMeta.symbol)
         )
         return session.execute(statement).scalars().all()
@@ -146,68 +144,61 @@ def update_database(symbol: str):
 #     st.toast(f"You opened the {st.session_state.chart} tab.")
 
 
-@st.fragment
-def symbolmeta_sidebar_fragment(symbol: str):
-    ticker = yf.Ticker(symbol)
-    info = ticker.info
-    # pprint(info, indent=2)
-    m1, m2 = st.columns(2)
-    m1.metric(
-        "当前价格",
-        f"${info['currentPrice']}",
-        # f"+{info['regularMarketChangePercent']:.2}%",
-        delta=format_percentage(info["regularMarketChangePercent"]),
-    )
-    m2.metric("成交量", format_human_readable(info["volume"]))
+# @st.fragment
+# def symbolmeta_sidebar_fragment(symbol: str):
+#     ticker = yf.Ticker(symbol)
+#     info = ticker.info
+#     # pprint(info, indent=2)
+#     m1, m2 = st.columns(2)
+#     m1.metric(
+#         "当前价格",
+#         f"${info['currentPrice']}",
+#         # f"+{info['regularMarketChangePercent']:.2}%",
+#         delta=format_percentage(info["regularMarketChangePercent"]),
+#     )
+#     m2.metric("成交量", format_human_readable(info["volume"]))
 
-    m3, m4 = st.columns(2)
-    m3.metric("总市值", format_human_readable(info["marketCap"]))
-    m4.metric("波动率", "1.24%")  # 示例
+#     m3, m4 = st.columns(2)
+#     m3.metric("总市值", format_human_readable(info["marketCap"]))
+#     m4.metric("波动率", "1.24%")  # 示例
 
 
-@st.fragment
-def news_sidebar_fragment(symbol: str):
-    st.subheader(f"📰 {symbol} 實時新聞")
+# @st.fragment
+# def news_sidebar_fragment(symbol: str):
+#     st.subheader(f"📰 {symbol} 實時新聞")
 
-    # 局部刷新按鈕
-    if st.button("🔄 刷新新聞 (局部)"):
-        st.cache_data.clear()  # 清除緩存以獲取最新
-        # fragment 會自動處理局部重新渲染
+#     # 局部刷新按鈕
+#     if st.button("🔄 刷新新聞 (局部)"):
+#         st.cache_data.clear()  # 清除緩存以獲取最新
+#         # fragment 會自動處理局部重新渲染
 
-    with st.spinner("讀取中..."):
-        # df = get_cached_news(symbol)
-        df = fetch_and_analyze(symbol)
+#     with st.spinner("讀取中..."):
+#         # df = get_cached_news(symbol)
+#         df = fetch_and_analyze(symbol)
 
-    if not df.empty:
-        # 限制顯示數量以適應側邊欄高度
-        # for _, row in df.head(10).iterrows():
-        #     with st.container(border=True):
-        #         st.markdown(f"**{row['headline']}**")
-        #         st.caption(
-        #             f"{row['datetime'].strftime('%m-%d %H:%M')} | {row['source']}"
-        #         )
-        #         st.markdown(f"[閱讀原文]({row['url']})")
-        # 情感分布小统计
-        sentiment_counts = df["sentiment_label"].value_counts()
-        st.caption("过去7天情感分布")
-        st.bar_chart(sentiment_counts, horizontal=True, height=150)
+#     if not df.empty:
 
-        st.divider()
+#         # 情感分布小统计
+#         sentiment_counts = df["sentiment_label"].value_counts()
+#         st.caption("过去7天情感分布")
+#         st.bar_chart(sentiment_counts, horizontal=True, height=150)
 
-        # 新闻列表渲染
-        for _, row in df.head(12).iterrows():
-            with st.container(border=True):
-                # 用不同颜色显示标签
-                st.markdown(
-                    f"**{row['sentiment_label']}** (得分: {row['sentiment_score']:.2f})"
-                )
-                st.markdown(f"**{row['headline']}**")
-                st.caption(
-                    f"{row['source']} | {row['datetime'].strftime('%Y-%m-%d')}"
-                )
-                st.link_button("查看全文", row["url"], icon="🔗")
-    else:
-        st.info("暫無新聞")
+#         st.divider()
+
+#         # 新闻列表渲染
+#         for _, row in df.head(12).iterrows():
+#             with st.container(border=True):
+#                 # 用不同颜色显示标签
+#                 st.markdown(
+#                     f"**{row['sentiment_label']}** (得分: {row['sentiment_score']:.2f})"
+#                 )
+#                 st.markdown(f"**{row['headline']}**")
+#                 st.caption(
+#                     f"{row['source']} | {row['datetime'].strftime('%Y-%m-%d')}"
+#                 )
+#                 st.link_button("查看全文", row["url"], icon="🔗")
+#     else:
+#         st.info("暫無新聞")
 
 
 # ==========================================
@@ -215,7 +206,7 @@ def news_sidebar_fragment(symbol: str):
 # ==========================================
 def main():
     st.set_page_config(
-        page_title="Quant Dashboard",
+        page_title="Stock Dashboard",
         layout="wide",
         initial_sidebar_state="expanded",
     )
