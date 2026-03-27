@@ -91,3 +91,62 @@ def calculate_drawdown(strategy_returns_series):
     drawdown = (cumulative / running_max) - 1
 
     return drawdown
+
+
+def add_breakout_signals(df, rvol_threshold=2.0, price_change_threshold=0.03):
+    """
+    识别爆量突破信号
+    """
+    # 计算当日涨幅
+    df["pct_change"] = df["Close"].pct_change(fill_method=None)
+
+    # 定义突破信号：RVOL 达标 且 涨幅达标
+    df["breakout_signal"] = (df["rvol"] > rvol_threshold) & (
+        df["pct_change"] > price_change_threshold
+    )
+
+    return df
+
+
+@st.cache_data(ttl=300)
+def process_data_with_rvol(df, length=10):
+    """
+    使用 pandas_ta 和原生 pandas 計算 RVOL
+    """
+    # 確保數據按時間排序
+    df = df.sort_index()
+
+    # 計算過去 N 期的平均成交量 (不包含當前這根)
+    df["avg_vol"] = df["Volume"].shift(1).rolling(window=length).mean()
+
+    # 計算 RVOL
+    df["rvol"] = df["Volume"] / df["avg_vol"]
+
+    # 處理空值 (前 N 期沒有足夠數據)
+    df["rvol"] = df["rvol"].fillna(0)
+
+    df = add_breakout_signals(df)
+
+    return df
+
+
+def identify_fvg(df):
+    # 初始化缺口列
+    df["fvg_top"] = None
+    df["fvg_bottom"] = None
+    df["fvg_type"] = 0  # 1 为看涨, -1 为看跌
+
+    for i in range(2, len(df)):
+        # 看涨 FVG 逻辑
+        if df["low"].iloc[i] > df["high"].iloc[i - 2]:
+            df.at[df.index[i - 1], "fvg_type"] = 1
+            df.at[df.index[i - 1], "fvg_top"] = df["low"].iloc[i]
+            df.at[df.index[i - 1], "fvg_bottom"] = df["high"].iloc[i - 2]
+
+        # 看跌 FVG 逻辑
+        elif df["high"].iloc[i] < df["low"].iloc[i - 2]:
+            df.at[df.index[i - 1], "fvg_type"] = -1
+            df.at[df.index[i - 1], "fvg_top"] = df["low"].iloc[i - 2]
+            df.at[df.index[i - 1], "fvg_bottom"] = df["high"].iloc[i]
+
+    return df
