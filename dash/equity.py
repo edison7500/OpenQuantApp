@@ -16,7 +16,6 @@ from dash.components.fragments import (
     symbolmeta_sidebar_fragment,
 )
 
-# from database.connections.arcticdb_conn import ArcticDBConnection
 from database.models import SymbolMeta
 from database.resource import get_arctic_library, get_sql_connection
 from indicators import (
@@ -24,23 +23,6 @@ from indicators import (
     load_and_process_data_with_range,
     process_data_with_rvol,
 )
-
-# # ==========================================
-# # 1. 数据库连接层 (全局缓存)
-# # ==========================================
-# @st.cache_resource
-# def get_arctic_library(timeframe: str = "D"):
-#     """Initialize and return ArcticDB connection"""
-#     ac = st.connection("arcticdb", type=ArcticDBConnection)
-#     lib = ac.get_library(timeframe, create_if_missing=True)
-#     return lib
-
-
-# @st.cache_resource
-# def get_sql_connection():
-#     conn = st.connection("quant_db", type="sql")
-#     return conn
-
 
 @st.cache_data(ttl=3600)
 def get_symbols(asset_type: str = "Equity") -> List[SymbolMeta]:
