@@ -1,9 +1,6 @@
-import datetime
-
-import pytz
 import streamlit as st
 import yfinance as yf
-
+from pprint import pprint
 from api.fetch_news import fetch_and_analyze
 from utils.human_readable import format_human_readable, format_percentage
 
@@ -67,17 +64,23 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
     ticker = yf.Ticker(symbol)
     info = ticker.info
     m1, m2 = st.columns(2)
-    m1.metric(
-        "当前价格",
-        f"${info['currentPrice']}",
-        # f"+{info['regularMarketChangePercent']:.2}%",
-        delta=format_percentage(info["regularMarketChangePercent"]),
-    )
+    try:
+        m1.metric(
+            "当前价格",
+            f"${info['currentPrice']}",
+            # f"+{info['regularMarketChangePercent']:.2}%",
+            delta=format_percentage(info["regularMarketChangePercent"]),
+        )
+    except KeyError:
+        pass
     m2.metric("成交量", format_human_readable(info["volume"]))
 
     m3, m4 = st.columns(2)
-    m3.metric("总市值", format_human_readable(info["marketCap"]))
-    m4.metric("波动率", "1.24%")  # 示例
+    try:
+        m3.metric("总市值", format_human_readable(info["marketCap"]))
+        m4.metric("波动率", "1.24%")  # 示例
+    except KeyError:
+        pass
 
 
 @st.fragment

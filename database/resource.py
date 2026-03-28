@@ -1,3 +1,4 @@
+from typing import Optional, List
 import streamlit as st
 
 from database.connections.arcticdb_conn import ArcticDBConnection
@@ -21,4 +22,18 @@ def get_sql_connection():
     return conn
 
 
-get_symbols = DatabaseManager(conn=get_sql_connection()).get_active_symbols
+@st.cache_data(ttl=3600)
+def get_symbols(asset_type: str = "Equity") -> Optional[List]:
+    symbols = DatabaseManager(conn=get_sql_connection()).get_active_symbols(
+        asset_type
+    )
+
+    return symbols
+
+
+@st.cache_data(ttl=3600)
+def get_symbol_meta(symbol: str):
+    symbol_meta = DatabaseManager(conn=get_sql_connection()).get_symbol_meta(
+        symbol
+    )
+    return symbol_meta
