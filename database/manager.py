@@ -7,9 +7,12 @@ from database import models
 
 
 class DatabaseManager(object):
-    def __init__(self):
-        conn = st.connection("quant_db", type="sql")
-        self.engine = conn.engine
+    def __init__(self, conn) -> None:
+        if conn is None:
+            _conn = st.connection("quant_db", type="sql")
+        else:
+            _conn = conn
+        self.engine = _conn.engine
         self.session = Session(self.engine)
 
     def init_db(self):
@@ -28,14 +31,18 @@ class DatabaseManager(object):
             session.add(symbol)
             session.commit()
 
-    def get_active_symbols(self) -> Optional[List[str]]:
+    def get_active_symbols(
+        self, asset_type: str = "Equity"
+    ) -> Optional[List[str]]:
         """获取需要同步的股票列表"""
         # 使用 SQLModel 的 select 语法...
         with self.session as session:
             statement = select(models.SymbolMeta.symbol).where(
-                models.SymbolMeta.is_active
+                models.SymbolMeta.is_active,
+                models.SymbolMeta.asset_type == asset_type,
             )
-            symbols = session.exec(statement).scalars().all()
+            # symbols = session.exec(statement).scalars().all()
+            symbols = session.exec(statement).all()
 
             if not symbols:
                 return

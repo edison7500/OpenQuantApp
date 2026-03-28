@@ -1,6 +1,7 @@
 import streamlit as st
 
 from database.connections.arcticdb_conn import ArcticDBConnection
+from database.manager import DatabaseManager
 
 
 # ==========================================
@@ -18,3 +19,6 @@ def get_arctic_library(timeframe: str = "D"):
 def get_sql_connection():
     conn = st.connection("quant_db", type="sql")
     return conn
+
+
+get_symbols = DatabaseManager(conn=get_sql_connection()).get_active_symbols
