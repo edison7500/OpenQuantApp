@@ -65,7 +65,7 @@ def control_panel_sidebar_fragment(title: str) -> None:
 def symbolmeta_sidebar_fragment(symbol: str) -> None:
     ticker = yf.Ticker(symbol)
     info = ticker.info
-    pprint(info, indent=2)
+    # pprint(info, indent=2)
     m1, m2 = st.columns(2)
     try:
         m1.metric(
