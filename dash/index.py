@@ -1,7 +1,5 @@
 import datetime
 
-# from pprint import pprint
-
 import pandas as pd
 import pandas_ta as ta  # noqa
 import pytz
@@ -9,17 +7,16 @@ import streamlit as st
 import yfinance as yf
 
 import chart
-from dash.components.fragments import (
-    news_sidebar_fragment,
-    symbolmeta_sidebar_fragment,
-)
+from dash.components.fragments import (news_sidebar_fragment,
+                                       symbolmeta_sidebar_fragment)
+from database.resource import get_arctic_library, get_symbol_meta, get_symbols
+from indicators import (calculate_drawdown, load_and_process_data_with_range,
+                        process_data_with_rvol)
 
-from database.resource import get_arctic_library, get_symbols, get_symbol_meta
-from indicators import (
-    calculate_drawdown,
-    load_and_process_data_with_range,
-    process_data_with_rvol,
-)
+# from pprint import pprint
+
+
+
 
 
 def update_database(symbol: str):

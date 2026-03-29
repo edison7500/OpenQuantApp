@@ -1,4 +1,5 @@
-from typing import Optional, List
+from typing import List, Optional
+
 import streamlit as st
 
 from database.connections.arcticdb_conn import ArcticDBConnection

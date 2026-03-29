@@ -15,6 +15,7 @@ class SymbolMeta(SQLModel, table=True):
     industry: Optional[str] = None  # 行业
     exchange: Optional[str] = None  # 交易所
     is_active: bool = Field(default=True)
+    currency: Optional[str] = None
     updated_at: datetime = Field(default_factory=datetime.now)
 
 

@@ -1,5 +1,6 @@
-from typing import List
 from functools import cached_property
+from typing import List
+
 from arcticdb import Arctic
 from streamlit.connections import BaseConnection
 

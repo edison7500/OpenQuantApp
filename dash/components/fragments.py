@@ -1,6 +1,8 @@
+from pprint import pprint
+
 import streamlit as st
 import yfinance as yf
-from pprint import pprint
+
 from api.fetch_news import fetch_and_analyze
 from utils.human_readable import format_human_readable, format_percentage
 
@@ -63,6 +65,7 @@ def control_panel_sidebar_fragment(title: str) -> None:
 def symbolmeta_sidebar_fragment(symbol: str) -> None:
     ticker = yf.Ticker(symbol)
     info = ticker.info
+    pprint(info, indent=2)
     m1, m2 = st.columns(2)
     try:
         m1.metric(
