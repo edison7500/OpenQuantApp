@@ -15,11 +15,11 @@ load_dotenv()
 class DataSyncEngine:
     def __init__(self):
         self.ac = st.connection("arcticdb", type=ArcticDBConnection)
-        self.library_name = self._secrets.get("library")
+        # self.library_name = self.ac.library_name
         self.libraries = {
-            "1m": f"{self.library_name}.min1",
-            "1h": f"{self.library_name}.min60",
-            "D": f"{self.library_name}",
+            "1m": f"{self.ac.library_name}.min1",
+            "1h": f"{self.ac.library_name}.min60",
+            "D": f"{self.ac.library_name}",
         }
         self._ensure_libraries()
 
@@ -47,7 +47,7 @@ class DataSyncEngine:
         return hist_data
 
     def sync_symbol(self, symbol) -> int:
-        lib = self.ac.get_library(self.libraries["D"])
+        lib = self.ac.get_library(timeframe="D")
 
         if lib.has_symbol(symbol):
             new_data = self.fetch_from_api(symbol)
@@ -60,6 +60,8 @@ class DataSyncEngine:
                     "retrieval_date": pd.Timestamp.now(),
                 }
                 lib.write(symbol, hist_data, metadata=metadata)
+
+        return 0
 
     # def sync_symbol(self, symbol) -> int:
     #     lib_1m = self.ac.get_library(self.libraries["1m"])
@@ -134,5 +136,5 @@ class DataSyncEngine:
 
 if __name__ == "__main__":
     data_sync = DataSyncEngine()
-    data_sync.sync_symbol("AAPL")
+    data_sync.sync_symbol("NET")
     # data_sync.sync_symbols()

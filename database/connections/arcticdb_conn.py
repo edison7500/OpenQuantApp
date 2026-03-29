@@ -1,5 +1,5 @@
 from typing import List
-
+from functools import cached_property
 from arcticdb import Arctic
 from streamlit.connections import BaseConnection
 
@@ -16,15 +16,27 @@ class ArcticDBConnection(BaseConnection[Arctic]):
         )
         return Arctic(uri)
 
+    @cached_property
+    def library_name(self) -> str:
+        _library_name = self._secrets.get("library")
+        assert _library_name is not None
+        return _library_name
+
     def cursor(self) -> Arctic:
         return self._instance
 
+    def create_library(self, lib, library_options):
+        self._instance.create_library(
+            lib,
+            library_options,
+        )
+
     def get_library(self, timeframe: str = "D", create_if_missing=False):
-        library_name = self._secrets.get("library")
+        # library_name = self._secrets.get("library")
         libraries = {
-            "1m": f"{library_name}.min1",
-            "1h": f"{library_name}.min60",
-            "D": f"{library_name}",
+            "1m": f"{self.library_name}.min1",
+            "1h": f"{self.library_name}.min60",
+            "D": f"{self.library_name}",
         }
         return self._instance.get_library(
             libraries[timeframe], create_if_missing

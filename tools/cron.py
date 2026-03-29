@@ -8,6 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
 
 from database.connections.arcticdb_conn import ArcticDBConnection
+from database.resource import get_symbols
 from notifier.tg import TelegramNotifier
 from sync_engine import DataSyncEngine
 
@@ -34,10 +35,10 @@ def get_scheduler():
 # ==========================================
 def daily_sync_job():
     engine = DataSyncEngine()
-    ac = st.connection("arcticdb", type=ArcticDBConnection)
-    lib = ac.get_library()
+    # ac = st.connection("arcticdb", type=ArcticDBConnection)
+    # lib = ac.get_library()
 
-    for sym in lib.list_symbols():
+    for sym in get_symbols():
         # 这里逻辑要保持幂等性：只抓取缺失的数据
         engine.sync_symbol(sym)
         time.sleep(1)
@@ -99,8 +100,8 @@ def main():
         if not is_running:
             if st.button("开启自动同步 (每 5 分钟)"):
                 scheduler.add_job(
-                    # daily_sync_job,
-                    daily_sync_and_scan_job,
+                    daily_sync_job,
+                    # daily_sync_and_scan_job,
                     "interval",
                     minutes=5,
                     id=job_id,
