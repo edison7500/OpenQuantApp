@@ -58,6 +58,16 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
 
     """
+    try:
+        import streamlit as st
+
+        # 尝试从 streamlit 的 secrets 中读取
+        db_url = st.secrets["connections"]["quant_db"]["url"]
+        config.set_main_option("sqlalchemy.url", db_url)
+    except Exception:
+        # 如果不是在 streamlit 环境下运行（比如本地命令行），可以回退到环境变量
+        pass
+
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
