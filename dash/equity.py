@@ -200,7 +200,7 @@ def main():
                     )
                     st.plotly_chart(
                         fig_trading_terminal,
-                        use_container_width=True,
+                        width="stretch",
                         config={"displayModeBar": False},
                     )
         else:

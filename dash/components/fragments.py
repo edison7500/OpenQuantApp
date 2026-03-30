@@ -4,7 +4,12 @@ import streamlit as st
 import yfinance as yf
 
 from api.fetch_news import fetch_and_analyze
-from utils.human_readable import format_human_readable, format_percentage
+from utils.human_readable import (
+    format_human_readable,
+    # format_percentage,
+    get_display_format,
+    format_value,
+)
 
 
 @st.fragment
@@ -64,19 +69,21 @@ def control_panel_sidebar_fragment(title: str) -> None:
 @st.fragment
 def symbolmeta_sidebar_fragment(symbol: str) -> None:
     ticker = yf.Ticker(symbol)
-    info = ticker.info
-    # pprint(info, indent=2)
+    info = ticker.fast_info
     m1, m2 = st.columns(2)
     try:
+        val = info["lastPrice"]
+        fmt_cfg = get_display_format(ticker)
+        print(fmt_cfg)
         m1.metric(
             "当前价格",
-            f"${info['currentPrice']}",
+            format_value(val, fmt_cfg),
             # f"+{info['regularMarketChangePercent']:.2}%",
-            delta=format_percentage(info["regularMarketChangePercent"]),
+            # delta=format_percentage(info["regularMarketChangePercent"]),
         )
     except KeyError:
         pass
-    m2.metric("成交量", format_human_readable(info["volume"]))
+    m2.metric("成交量", format_human_readable(info["lastVolume"]))
 
     m3, m4 = st.columns(2)
     try:
