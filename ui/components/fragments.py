@@ -4,12 +4,8 @@ import streamlit as st
 import yfinance as yf
 
 from api.fetch_news import fetch_and_analyze
-from utils.human_readable import (
-    format_human_readable,
-    # format_percentage,
-    get_display_format,
-    format_value,
-)
+from utils.human_readable import (format_human_readable,  # format_percentage,
+                                  format_value, get_display_format)
 
 
 @st.fragment

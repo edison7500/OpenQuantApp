@@ -6,17 +6,19 @@ import pytz
 import streamlit as st
 import yfinance as yf
 
-import chart
-from dash.components.fragments import (news_sidebar_fragment,
-                                       symbolmeta_sidebar_fragment)
+import ui.chart as chart
+from ui.components.fragments import (
+    news_sidebar_fragment,
+    symbolmeta_sidebar_fragment,
+)
 from database.resource import get_arctic_library, get_symbol_meta, get_symbols
-from indicators import (calculate_drawdown, load_and_process_data_with_range,
-                        process_data_with_rvol)
+from engine import (
+    calculate_drawdown,
+    load_and_process_data_with_range,
+    process_data_with_rvol,
+)
 
 # from pprint import pprint
-
-
-
 
 
 def update_database(symbol: str):
@@ -44,7 +46,7 @@ def update_database(symbol: str):
 # ==========================================
 def main():
     st.set_page_config(
-        page_title="Index Dashboard",
+        page_title="Stock Dashboard",
         layout="wide",
         initial_sidebar_state="expanded",
     )
@@ -54,7 +56,7 @@ def main():
     with st.sidebar:
         st.header("参数设置")
 
-        portfolio = get_symbols(asset_type="Index")
+        portfolio = get_symbols()
         if "symbol" not in st.session_state:
             st.session_state.setdefault("symbol", portfolio[0])
 
@@ -110,18 +112,24 @@ def main():
                 )
             if not hist.empty:
                 # --- Tabs 布局 ---
-                tab_rvol, tab_rsi, tab_macd, tab_bbands, tab_drawdown = (
-                    st.tabs(
-                        [
-                            "RVOL 视图",
-                            "📊 RSI 指标",
-                            "📈 MACD 指标",
-                            "🌀 布林带通道",
-                            "📉 风险回撤",
-                        ],
-                        width="stretch",
-                        # key="chart",
-                    )
+                (
+                    tab_rvol,
+                    tab_rsi,
+                    tab_macd,
+                    tab_bbands,
+                    tab_drawdown,
+                    tab_trading_terminal,
+                ) = st.tabs(
+                    [
+                        "RVOL 视图",
+                        "📊 RSI 指标",
+                        "📈 MACD 指标",
+                        "🌀 布林带通道",
+                        "📉 风险回撤",
+                        "核心策略视图",
+                    ],
+                    width="stretch",
+                    # key="chart",
                 )
                 with tab_rvol:
                     # current_price = hist["Close"].iloc[-1]
@@ -183,6 +191,15 @@ def main():
                     fig_drawdown = chart.create_drawdown_chart(hist, symbol)
                     st.plotly_chart(
                         fig_drawdown,
+                        width="stretch",
+                        config={"displayModeBar": False},
+                    )
+                with tab_trading_terminal:
+                    fig_trading_terminal = chart.plot_trading_terminal(
+                        hist, symbol
+                    )
+                    st.plotly_chart(
+                        fig_trading_terminal,
                         width="stretch",
                         config={"displayModeBar": False},
                     )

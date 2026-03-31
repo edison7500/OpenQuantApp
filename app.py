@@ -2,8 +2,8 @@
 import streamlit as st
 
 if __name__ == "__main__":
-    equity = st.Page("dash/equity.py", title="Stock")
-    index = st.Page("dash/indices.py", title="指数")
+    equity = st.Page("ui/equity.py", title="Stock")
+    index = st.Page("ui/indices.py", title="指数")
     cron = st.Page("tools/cron.py", title="自动化行情同步任务")
 
     pg = st.navigation(
