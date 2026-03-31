@@ -1,5 +1,6 @@
 import numpy as np
-import pandas as pd
+
+# import pandas as pd
 import plotly.graph_objs as go
 import streamlit as st
 from plotly.subplots import make_subplots
@@ -162,18 +163,22 @@ def create_macd_view(df, symbol):
 # --- 视图 3：布林带图表 (只有主图) ---
 def create_bbands_view(df, symbol):
     # 布林带不需要副图，直接画在一张图上
-    fig = go.Figure()
+    # fig = go.Figure()
 
-    fig.add_trace(
-        go.Candlestick(
-            x=df.index,
-            open=df["Open"],
-            high=df["High"],
-            low=df["Low"],
-            close=df["Close"],
-            name="K线",
-        )
-    )
+    # fig.add_trace(
+    #     go.Candlestick(
+    #         x=df.index,
+    #         open=df["Open"],
+    #         high=df["High"],
+    #         low=df["Low"],
+    #         close=df["Close"],
+    #         name="K线",
+    #     )
+    # )
+
+    fig = create_base_figure()
+
+    add_candlestick(fig, df)
 
     bb_u = [c for c in df.columns if c.startswith("BBU_")][0]
     bb_m = [c for c in df.columns if c.startswith("BBM_")][0]

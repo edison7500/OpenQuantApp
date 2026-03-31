@@ -6,6 +6,8 @@ import streamlit as st
 
 from database.connections.arcticdb_conn import ArcticDBConnection
 
+from .analytics import AnalyticsEngine
+
 
 @st.cache_data(ttl=3600)
 def load_and_process_data_with_range(
@@ -130,23 +132,78 @@ def process_data_with_rvol(df, length=10):
     return df
 
 
-def identify_fvg(df):
-    # 初始化缺口列
-    df["fvg_top"] = None
-    df["fvg_bottom"] = None
-    df["fvg_type"] = 0  # 1 为看涨, -1 为看跌
+# def identify_fvg(df):
+#     # 初始化缺口列
+#     df["fvg_top"] = None
+#     df["fvg_bottom"] = None
+#     df["fvg_type"] = 0  # 1 为看涨, -1 为看跌
 
-    for i in range(2, len(df)):
-        # 看涨 FVG 逻辑
-        if df["low"].iloc[i] > df["high"].iloc[i - 2]:
-            df.at[df.index[i - 1], "fvg_type"] = 1
-            df.at[df.index[i - 1], "fvg_top"] = df["low"].iloc[i]
-            df.at[df.index[i - 1], "fvg_bottom"] = df["high"].iloc[i - 2]
+#     for i in range(2, len(df)):
+#         # 看涨 FVG 逻辑
+#         if df["low"].iloc[i] > df["high"].iloc[i - 2]:
+#             df.at[df.index[i - 1], "fvg_type"] = 1
+#             df.at[df.index[i - 1], "fvg_top"] = df["low"].iloc[i]
+#             df.at[df.index[i - 1], "fvg_bottom"] = df["high"].iloc[i - 2]
 
-        # 看跌 FVG 逻辑
-        elif df["high"].iloc[i] < df["low"].iloc[i - 2]:
-            df.at[df.index[i - 1], "fvg_type"] = -1
-            df.at[df.index[i - 1], "fvg_top"] = df["low"].iloc[i - 2]
-            df.at[df.index[i - 1], "fvg_bottom"] = df["high"].iloc[i]
+#         # 看跌 FVG 逻辑
+#         elif df["high"].iloc[i] < df["low"].iloc[i - 2]:
+#             df.at[df.index[i - 1], "fvg_type"] = -1
+#             df.at[df.index[i - 1], "fvg_top"] = df["low"].iloc[i - 2]
+#             df.at[df.index[i - 1], "fvg_bottom"] = df["high"].iloc[i]
 
-    return df
+#     return df
+
+
+# def identify_fvg_vectorized(df):
+#     """使用向量化操作替代循环，速度提升 100x"""
+#     # 看涨 FVG: 当前 Low > 两天前 High
+#     bullish_mask = df["Low"] > df["High"].shift(2)
+#     # 看跌 FVG: 当前 High < 两天前 Low
+#     bearish_mask = df["High"] < df["Low"].shift(2)
+
+#     df["fvg_type"] = 0
+#     df.loc[bullish_mask.shift(-1).fillna(False), "fvg_type"] = 1
+#     df.loc[bearish_mask.shift(-1).fillna(False), "fvg_type"] = -1
+#     # ... 后续赋值 top/bottom 亦可向量化
+#     return df
+
+
+@st.cache_data(ttl=3600)
+def load_and_process_full_pipeline(
+    symbol, start_date, end_date, asset_type, timeframe="D", rsi_length=14
+):
+    """
+    主流水线：数据拉取 -> 指标计算 -> 信号生成 -> 时间截断
+    """
+    ac = st.connection("arcticdb", type=ArcticDBConnection)  #
+    lib = ac.get_library(timeframe)  #
+
+    # 增加缓冲期拉取数据
+    fetch_start = start_date - datetime.timedelta(days=30)
+    query_start = pd.to_datetime(fetch_start).tz_localize("UTC")
+    query_end = pd.to_datetime(end_date).tz_localize("UTC")
+
+    try:
+        df = lib.read(symbol, date_range=(query_start, query_end)).data  #
+    except Exception as e:  # noqa
+        return pd.DataFrame()
+
+    # 执行拆分后的组件逻辑
+    df = AnalyticsEngine.process(
+        df,
+        asset_type=asset_type,
+        include_signals=True,
+        rsi_length=rsi_length,
+    )
+    # df = identify_fvg_vectorized(df)
+    # df = identify_trading_signals(df)
+
+    # 截断回用户选择的时间范围
+    mask = (
+        df.index.tz_convert("UTC")
+        >= pd.to_datetime(start_date).tz_localize("UTC")
+    ) & (
+        df.index.tz_convert("UTC")
+        <= pd.to_datetime(end_date).tz_localize("UTC")
+    )
+    return df.loc[mask]

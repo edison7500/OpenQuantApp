@@ -7,15 +7,15 @@ import streamlit as st
 import yfinance as yf
 
 import ui.chart as chart
+from database.resource import get_arctic_library, get_symbol_meta, get_symbols
+from engine import (  # load_and_process_data_with_range,; process_data_with_rvol,
+    calculate_drawdown,
+    load_and_process_full_pipeline,
+)
+from engine.chart_factory import ChartFactory
 from ui.components.fragments import (
     news_sidebar_fragment,
     symbolmeta_sidebar_fragment,
-)
-from database.resource import get_arctic_library, get_symbol_meta, get_symbols
-from engine import (
-    calculate_drawdown,
-    load_and_process_data_with_range,
-    process_data_with_rvol,
 )
 
 # from pprint import pprint
@@ -95,7 +95,8 @@ def main():
         if st.button("🔄 强制刷新数据"):
             update_database(symbol)
             get_symbols.clear()
-            load_and_process_data_with_range.clear()
+            # load_and_process_data_with_range.clear()
+            load_and_process_full_pipeline.clear()
             calculate_drawdown.clear()
 
     col_main, col_news = st.columns([3, 1])
@@ -107,8 +108,13 @@ def main():
 
             with st.spinner(f"正在从 ArcticDB 加载 {symbol} 的数据..."):
                 # hist = load_and_process_data(symbol, rsi_length)
-                hist = load_and_process_data_with_range(
-                    symbol, start_date, end_date, timeframe, rsi_length
+                hist = load_and_process_full_pipeline(
+                    symbol,
+                    start_date,
+                    end_date,
+                    asset_type="equity",
+                    timeframe=timeframe,
+                    rsi_length=rsi_length,
                 )
             if not hist.empty:
                 # --- Tabs 布局 ---
@@ -138,14 +144,16 @@ def main():
                     #     "当前价格 (Current Price)", f"${current_price:.2f}"
                     # )
 
-                    hist = process_data_with_rvol(hist)
                     fig = chart.create_rvol_chart(hist, symbol)
                     st.plotly_chart(
                         fig, width="stretch", config={"displayModeBar": False}
                     )
 
                 with tab_rsi:
-                    fig_rsi = chart.create_rsi_view(hist, symbol)
+                    # fig_rsi = chart.create_rsi_view(hist, symbol)
+                    fig_rsi = ChartFactory.build_view(
+                        hist, symbol, view_type="RSI"
+                    )
                     st.plotly_chart(
                         fig_rsi,
                         width="stretch",
@@ -153,9 +161,8 @@ def main():
                     )
 
                 with tab_macd:
-                    # fig_macd = chart.create_macd_view(hist, symbol)
-                    fig_macd = chart.create_macd_view_with_signals(
-                        hist, symbol
+                    fig_macd = ChartFactory.build_view(
+                        hist, symbol, view_type="MACD"
                     )
                     st.plotly_chart(
                         fig_macd,
@@ -164,7 +171,10 @@ def main():
                     )
 
                 with tab_bbands:
-                    fig_bbands = chart.create_bbands_view(hist, symbol)
+                    # fig_bbands = chart.create_bbands_view(hist, symbol)
+                    fig_bbands = ChartFactory.build_view(
+                        hist, symbol, view_type="BBands"
+                    )
                     st.plotly_chart(
                         fig_bbands,
                         width="stretch",

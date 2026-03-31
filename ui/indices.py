@@ -7,16 +7,11 @@ import streamlit as st
 import yfinance as yf
 
 import ui.chart as chart
-from ui.components.fragments import (
-    news_sidebar_fragment,
-    symbolmeta_sidebar_fragment,
-)
 from database.resource import get_arctic_library, get_symbol_meta, get_symbols
-from engine import (
-    calculate_drawdown,
-    load_and_process_data_with_range,
-    process_data_with_rvol,
-)
+from engine import (calculate_drawdown, load_and_process_data_with_range,
+                    load_and_process_full_pipeline, process_data_with_rvol)
+from ui.components.fragments import (news_sidebar_fragment,
+                                     symbolmeta_sidebar_fragment)
 
 # from pprint import pprint
 
@@ -107,8 +102,16 @@ def main():
 
             with st.spinner(f"正在从 ArcticDB 加载 {symbol} 的数据..."):
                 # hist = load_and_process_data(symbol, rsi_length)
-                hist = load_and_process_data_with_range(
-                    symbol, start_date, end_date, timeframe, rsi_length
+                # hist = load_and_process_data_with_range(
+                #     symbol, start_date, end_date, timeframe, rsi_length
+                # )
+                hist = load_and_process_full_pipeline(
+                    symbol,
+                    start_date,
+                    end_date,
+                    asset_type="index",
+                    timeframe=timeframe,
+                    rsi_length=rsi_length,
                 )
             if not hist.empty:
                 # --- Tabs 布局 ---
@@ -122,7 +125,6 @@ def main():
                             "📉 风险回撤",
                         ],
                         width="stretch",
-                        # key="chart",
                     )
                 )
                 with tab_rvol:
@@ -132,7 +134,7 @@ def main():
                     #     "当前价格 (Current Price)", f"${current_price:.2f}"
                     # )
 
-                    hist = process_data_with_rvol(hist)
+                    # hist = process_data_with_rvol(hist)
                     fig = chart.create_rvol_chart(hist, symbol)
                     st.plotly_chart(
                         fig, width="stretch", config={"displayModeBar": False}
