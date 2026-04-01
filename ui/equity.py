@@ -161,7 +161,7 @@ def main():
                     )
 
                 with tab_macd:
-                    fig_macd = ChartFactory.build_view(
+                    fig_macd = ChartFactory.build_advanced_view(
                         hist, symbol, view_type="MACD"
                     )
                     st.plotly_chart(

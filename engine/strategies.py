@@ -37,3 +37,20 @@ def identify_fvg_vectorized(df: pd.DataFrame) -> pd.DataFrame:
     df.loc[bearish_mask.shift(-1).fillna(False), "fvg_type"] = -1  #
 
     return df
+
+
+def calculate_drawdown(strategy_returns_series):
+    """
+    输入：策略收益率序列 (Returns)
+    输出：回撤百分比序列
+    """
+    # 1. 计算累计净值 (Cumulative Returns)
+    cumulative = (1 + strategy_returns_series).cumprod()
+
+    # 2. 计算历史最高滚动净值 (Running Maximum)
+    running_max = cumulative.cummax()
+
+    # 3. 计算回撤 (当前净值 / 历史最高 - 1)
+    drawdown = (cumulative / running_max) - 1
+
+    return drawdown

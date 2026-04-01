@@ -36,6 +36,47 @@ class ChartFactory:
         )
 
     @staticmethod
+    def add_ma_signals(fig, df, row=1):
+        """在 K 線圖上標註均線金叉與死叉"""
+        # 金叉標註 (綠色圓點)
+        buy_sig = df[df["MA_Cross_Buy"]]
+        fig.add_trace(
+            go.Scatter(
+                x=buy_sig.index,
+                y=buy_sig["sma_main"],
+                mode="markers",
+                name="均線金叉",
+                marker=dict(
+                    symbol="circle",
+                    size=10,
+                    color="#00FF7F",
+                    line=dict(width=2, color="white"),
+                ),
+            ),
+            row=row,
+            col=1,
+        )
+
+        # 死叉標註 (紅色圓點)
+        sell_sig = df[df["MA_Cross_Sell"]]
+        fig.add_trace(
+            go.Scatter(
+                x=sell_sig.index,
+                y=sell_sig["sma_main"],
+                mode="markers",
+                name="均線死叉",
+                marker=dict(
+                    symbol="circle",
+                    size=10,
+                    color="#FF4500",
+                    line=dict(width=2, color="white"),
+                ),
+            ),
+            row=row,
+            col=1,
+        )
+
+    @staticmethod
     def add_signal_markers(fig, df, row=1):
         """核心组件：在主图标记买卖点"""
         # 买入信号 (金叉/突破)
@@ -73,6 +114,32 @@ class ChartFactory:
             )
 
     @staticmethod
+    def add_cci(fig, df, row=2):
+        """组件：绘制 CCI (顺势指标)"""
+        cci_col = [c for c in df.columns if "CCI" in c][0]
+
+        # 绘制 CCI 主线
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[cci_col],
+                name="CCI",
+                line=dict(color="#00D2FF", width=1.5),
+            ),
+            row=row,
+            col=1,
+        )
+
+        # 添加边界参考线 (+100, 0, -100)
+        fig.add_hline(
+            y=100, line_dash="dash", line_color="#FF4500", row=row, col=1
+        )
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", row=row, col=1)
+        fig.add_hline(
+            y=-100, line_dash="dash", line_color="#00FF7F", row=row, col=1
+        )
+
+    @staticmethod
     def build_view(df: pd.DataFrame, symbol: str, view_type: str = "MACD"):
         """
         工厂入口：根据类型组装图表
@@ -105,6 +172,10 @@ class ChartFactory:
             fig.add_hline(
                 y=30, line_dash="dash", line_color="green", row=2, col=1
             )
+
+        elif view_type == "CCI":
+            # 调用新封装的 CCI 方法
+            ChartFactory.add_cci(fig, df, row=2)
 
         elif view_type == "BBands":
             bb_u = [c for c in df.columns if c.startswith("BBU_")][0]
@@ -145,4 +216,84 @@ class ChartFactory:
             height=800,
             template="plotly_dark",
         )
+        return fig
+
+    @staticmethod
+    def build_advanced_view(
+        df: pd.DataFrame,
+        symbol: str,
+        view_type: str = "MACD",
+        include_osc=True,
+    ):
+        rows = 3 if include_osc else 1
+        heights = [0.6, 0.2, 0.2] if include_osc else [1.0]
+
+        fig = ChartFactory._create_base(rows=rows, heights=heights)
+        ChartFactory.add_candlestick(fig, df)
+
+        # 繪製三條均線
+        # SMA: 白色實線
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["sma_main"],
+                name="SMA",
+                line=dict(color="white", width=1.5),
+            ),
+            row=1,
+            col=1,
+        )
+        # EMA: 金色虛線
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["ema_main"],
+                name="EMA",
+                line=dict(color="gold", width=1.5, dash="dot"),
+            ),
+            row=1,
+            col=1,
+        )
+        # WMA: 紫色細線
+        wma_col = [c for c in df.columns if "WMA_" in c][0]
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[wma_col],
+                name="WMA (加權)",
+                line=dict(color="#E066FF", width=1, dash="dashdot"),
+            ),
+            row=1,
+            col=1,
+        )
+
+        # 加入交叉信號標註
+        ChartFactory.add_ma_signals(fig, df)
+
+        # 2. 绘制副图
+        if include_osc:
+            # Row 2: RSI (看超买超卖)
+            # ChartFactory.add_rsi(fig, df, row=2)
+            # Row 3: CCI (看动能突破)
+            ChartFactory.add_cci(fig, df, row=3)
+
+        if view_type == "MACD":
+            # 动态寻找 MACD 相关列
+            hist = [c for c in df.columns if "MACDh" in c][0]
+            line = [c for c in df.columns if "MACD_" in c][0]
+
+            fig.add_trace(
+                go.Bar(x=df.index, y=df[hist], name="柱状图"), row=2, col=1
+            )
+            fig.add_trace(
+                go.Scatter(x=df.index, y=df[line], name="MACD线"), row=2, col=1
+            )
+
+        fig.update_layout(
+            title=f"{symbol} - {view_type} 分析",
+            xaxis_rangeslider_visible=False,
+            height=800,
+            template="plotly_dark",
+        )
+
         return fig

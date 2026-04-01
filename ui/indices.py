@@ -8,10 +8,14 @@ import yfinance as yf
 
 import ui.chart as chart
 from database.resource import get_arctic_library, get_symbol_meta, get_symbols
-from engine import (calculate_drawdown, load_and_process_data_with_range,
-                    load_and_process_full_pipeline, process_data_with_rvol)
-from ui.components.fragments import (news_sidebar_fragment,
-                                     symbolmeta_sidebar_fragment)
+from engine import (
+    calculate_drawdown,
+    load_and_process_full_pipeline,
+)
+from ui.components.fragments import (
+    news_sidebar_fragment,
+    symbolmeta_sidebar_fragment,
+)
 
 # from pprint import pprint
 
@@ -90,7 +94,7 @@ def main():
         if st.button("🔄 强制刷新数据"):
             update_database(symbol)
             get_symbols.clear()
-            load_and_process_data_with_range.clear()
+            load_and_process_full_pipeline.clear()
             calculate_drawdown.clear()
 
     col_main, col_news = st.columns([3, 1])
