@@ -1,4 +1,8 @@
+import numpy as np
+
+# import pandas as pd
 import plotly.graph_objs as go
+import streamlit as st
 from plotly.subplots import make_subplots
 
 
@@ -159,18 +163,22 @@ def create_macd_view(df, symbol):
 # --- 视图 3：布林带图表 (只有主图) ---
 def create_bbands_view(df, symbol):
     # 布林带不需要副图，直接画在一张图上
-    fig = go.Figure()
+    # fig = go.Figure()
 
-    fig.add_trace(
-        go.Candlestick(
-            x=df.index,
-            open=df["Open"],
-            high=df["High"],
-            low=df["Low"],
-            close=df["Close"],
-            name="K线",
-        )
-    )
+    # fig.add_trace(
+    #     go.Candlestick(
+    #         x=df.index,
+    #         open=df["Open"],
+    #         high=df["High"],
+    #         low=df["Low"],
+    #         close=df["Close"],
+    #         name="K线",
+    #     )
+    # )
+
+    fig = create_base_figure()
+
+    add_candlestick(fig, df)
 
     bb_u = [c for c in df.columns if c.startswith("BBU_")][0]
     bb_m = [c for c in df.columns if c.startswith("BBM_")][0]
@@ -343,3 +351,88 @@ def create_drawdown_chart(df, symbol):
     )
 
     return fig
+
+
+@st.cache_data(ttl=300)
+def get_fvg_data_vectorized(df):
+    """
+    使用向量化快速提取 FVG 坐标，适配 ArcticDB 返回的 DataFrame
+    """
+    # 转换为 numpy 数组提升 10-50 倍速度
+    high = df["High"].values
+    low = df["Low"].values
+    times = df.index.values
+
+    # 1. 识别看涨 FVG: 今日最低 > 前前日最高 (i 与 i-2 对比)
+    # bull_fvg_mask[i] 对应的是第 3 根 K 线
+    bull_fvg_mask = np.zeros(len(df), dtype=bool)
+    bull_fvg_mask[2:] = low[2:] > high[:-2]
+
+    # 2. 提取有效索引
+    fvg_indices = np.where(bull_fvg_mask)[0]
+
+    results = []
+    for idx in fvg_indices:
+        # FVG 区域由第 1 根的高和第 3 根的低组成
+        results.append(
+            {
+                "start_time": times[idx - 2],
+                "end_time": times[-1],  # 初始设为延伸到最后
+                "y0": high[idx - 2],
+                "y1": low[idx],
+                "type": "bull",
+            }
+        )
+
+    return results
+
+
+def plot_trading_terminal(df, symbol):
+    fig = create_base_figure()
+    add_candlestick(fig, df)
+    # 2. 识别并绘制 BAG (突破缺口 - 物理断层)
+    for i in range(1, len(df)):
+        # 看涨突破缺口：今日最低 > 昨日最高
+        if df["Low"].iloc[i] > df["High"].iloc[i - 1]:
+            fig.add_shape(
+                type="rect",
+                x0=df.index[i - 1],
+                x1=df.index[i],
+                y0=df["High"].iloc[i - 1],
+                y1=df["Low"].iloc[i],
+                fillcolor="gold",
+                opacity=0.5,
+                line_width=0,
+                name="BAG",
+            )
+
+    # 3. 识别并绘制 FVG (公允价值缺口 - 三棒失衡)
+    for i in range(2, len(df)):
+        # 看涨 FVG: 第一根(i-2)的高 < 第三根(i)的低
+        if df["High"].iloc[i - 2] < df["Low"].iloc[i]:
+            # --- 修复逻辑开始 ---
+            # 确保延伸的索引不会溢出数据边界
+            end_idx_val = min(i + 5, len(df) - 1)
+            # --- 修复逻辑结束 ---
+            fig.add_shape(
+                type="rect",
+                x0=df.index[i - 2],
+                x1=df.index[end_idx_val],  # 使用安全后的索引
+                y0=df["High"].iloc[i - 2],
+                y1=df["Low"].iloc[i],
+                fillcolor="lightskyblue",
+                opacity=0.3,
+                line_width=0,
+                layer="below",
+            )
+
+    fig.update_layout(
+        title=f"{symbol}: FVG & BAG Analysis",
+        yaxis_title="Price",
+        xaxis_rangeslider_visible=False,
+        template="plotly_dark",
+        height=700,
+    )
+    return fig
+
+    # st.plotly_chart(fig, use_container_width=True)

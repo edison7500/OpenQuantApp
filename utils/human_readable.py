@@ -1,3 +1,7 @@
+# 核心配置文件
+from config import FINANCIAL_CONFIG
+
+
 def format_human_readable(num, precision=2):
     """
     将数字转换为易读格式 (K, M, B, T)
@@ -16,3 +20,38 @@ def format_human_readable(num, precision=2):
 def format_percentage(val):
     """带正负号的百分比"""
     return f"{val:+.2f}%"
+
+
+def get_display_format(ticker_obj):
+    """
+    根据 ticker 的 fast_info 自动获取格式化参数
+    """
+    f_info = ticker_obj.fast_info
+    q_type = f_info.get("quoteType", "").upper()
+    raw_currency = f_info.get("currency", "USD")
+
+    # 逻辑 1：判断是否为指数
+    if q_type == "INDEX":
+        return FINANCIAL_CONFIG["INDICES"]["DEFAULT"]
+    # 逻辑 2：个股货币映射
+    config = FINANCIAL_CONFIG["CURRENCIES"].get(raw_currency)
+
+    # 逻辑 3：兜底逻辑（如果遇到未定义的货币代码，如 HKD）
+    if not config:
+        config = {"symbol": raw_currency, "unit": raw_currency, "precision": 2}
+
+    return config
+
+
+def format_value(value, config):
+    # 如果数值 > 1000 且它是指数点位，强制改为 0 位精度
+    if config.get("unit") == "Index" and value >= 1000:
+        precision = 0
+    else:
+        precision = config.get("precision", 2)
+
+    symbol = config["symbol"]
+    if config["unit"] == "Index":
+        return f"{value:,.{precision}f} {symbol}"
+    else:
+        return f"{symbol}{value:,.{precision}f}"

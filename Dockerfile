@@ -1,5 +1,8 @@
 FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 # 1. 利用 uv 的缓存机制，先只复制依赖文件

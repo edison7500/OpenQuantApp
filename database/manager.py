@@ -7,9 +7,12 @@ from database import models
 
 
 class DatabaseManager(object):
-    def __init__(self):
-        conn = st.connection("quant_db", type="sql")
-        self.engine = conn.engine
+    def __init__(self, conn=None) -> None:
+        if conn is None:
+            _conn = st.connection("quant_db", type="sql")
+        else:
+            _conn = conn
+        self.engine = _conn.engine
         self.session = Session(self.engine)
 
     def init_db(self):
@@ -28,19 +31,38 @@ class DatabaseManager(object):
             session.add(symbol)
             session.commit()
 
-    def get_active_symbols(self) -> Optional[List[str]]:
+    def get_active_symbols(
+        self, asset_type: str = "Equity"
+    ) -> Optional[List[str]]:
         """获取需要同步的股票列表"""
         # 使用 SQLModel 的 select 语法...
         with self.session as session:
-            statement = select(models.SymbolMeta.symbol).where(
-                models.SymbolMeta.is_active
+            statement = (
+                select(models.SymbolMeta.symbol)
+                .where(
+                    models.SymbolMeta.is_active,
+                    models.SymbolMeta.asset_type == asset_type,
+                )
+                .order_by(models.SymbolMeta.symbol)
             )
-            symbols = session.exec(statement).scalars().all()
+            # symbols = session.exec(statement).scalars().all()
+            symbols = session.exec(statement).all()
 
             if not symbols:
                 return
             else:
                 return symbols
+
+    def get_symbol_meta(self, symbol) -> models.SymbolMeta:
+        with self.session as session:
+            statement = select(models.SymbolMeta).where(
+                models.SymbolMeta.symbol == symbol
+            )
+            obj: models.SymbolMeta = (
+                session.execute(statement).scalars().first()
+            )
+
+        return obj
 
     def get_active_symbolmetas(self) -> Optional[List[models.SymbolMeta]]:
         with self.session as session:

@@ -46,6 +46,7 @@ def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
         sector=info.get("sector"),
         industry=info.get("industry"),
         exchange=info["exchange"],
+        currency=info["currency"],
     )
     db.create_symbolmeta(symbol)
 
