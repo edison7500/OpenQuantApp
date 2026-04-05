@@ -5,7 +5,6 @@ import pytz
 import streamlit as st
 import yfinance as yf
 
-import ui.chart as chart
 from database.resource import get_arctic_library, get_symbol_meta, get_symbols
 from engine import (
     calculate_drawdown,
