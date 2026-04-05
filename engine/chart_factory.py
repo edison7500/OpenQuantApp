@@ -114,7 +114,7 @@ class ChartFactory:
             )
 
     @staticmethod
-    def add_cci(fig, df, row=2):
+    def add_cci(fig, df, row=2) -> None:
         """组件：绘制 CCI (顺势指标)"""
         cci_col = [c for c in df.columns if "CCI" in c][0]
 
@@ -137,6 +137,113 @@ class ChartFactory:
         fig.add_hline(y=0, line_dash="dot", line_color="gray", row=row, col=1)
         fig.add_hline(
             y=-100, line_dash="dash", line_color="#00FF7F", row=row, col=1
+        )
+
+    @staticmethod
+    def add_rovl(fig, df, symbol, row=2, col=1) -> None:
+        sig_df = df[df["breakout_signal"]]
+
+        fig.add_trace(
+            go.Scatter(
+                x=sig_df.index,
+                y=sig_df["Low"] * 0.98,  # 在最低价下方 2% 处标注
+                mode="markers+text",
+                name="爆量突破",
+                marker=dict(
+                    symbol="triangle-up",
+                    size=12,
+                    color="gold",
+                    line=dict(width=2, color="darkorange"),
+                ),
+                text="💰",  # 也可以直接用 Emoji
+                textposition="bottom center",
+            ),
+            row=1,
+            col=1,
+        )
+        # --- 副图：RVOL 柱状图 ---
+        colors = ["#FFA500" if v > 2.0 else "#636EFA" for v in df["rvol"]]
+        fig.add_trace(
+            go.Bar(x=df.index, y=df["rvol"], marker_color=colors, name="RVOL"),
+            row=2,
+            col=1,
+        )
+
+        # 辅助线
+        fig.add_hline(
+            y=1.0, line_dash="dash", line_color="gray", row=row, col=col
+        )
+        fig.add_hline(
+            y=2.0, line_dash="dot", line_color="red", row=row, col=col
+        )
+
+        fig.update_layout(
+            title=f"{symbol} - ROVL 视图",
+            template="plotly_white",
+            xaxis_rangeslider_visible=False,
+            height=800,
+        )
+
+    @staticmethod
+    def add_trading_terminal(fig, df, symbol) -> None:
+        # 识别并绘制 BAG (突破缺口 - 物理断层)
+        for i in range(1, len(df)):
+            # 看涨突破缺口：今日最低 > 昨日最高
+            if df["Low"].iloc[i] > df["High"].iloc[i - 1]:
+                fig.add_shape(
+                    type="rect",
+                    x0=df.index[i - 1],
+                    x1=df.index[i],
+                    y0=df["High"].iloc[i - 1],
+                    y1=df["Low"].iloc[i],
+                    fillcolor="gold",
+                    opacity=0.5,
+                    line_width=0,
+                    name="BAG",
+                )
+
+        # 识别并绘制 FVG (公允价值缺口 - 三棒失衡)
+        for i in range(2, len(df)):
+            # 看涨 FVG: 第一根(i-2)的高 < 第三根(i)的低
+            if df["High"].iloc[i - 2] < df["Low"].iloc[i]:
+                # --- 修复逻辑开始 ---
+                # 确保延伸的索引不会溢出数据边界
+                end_idx_val = min(i + 5, len(df) - 1)
+                # --- 修复逻辑结束 ---
+                fig.add_shape(
+                    type="rect",
+                    x0=df.index[i - 2],
+                    x1=df.index[end_idx_val],  # 使用安全后的索引
+                    y0=df["High"].iloc[i - 2],
+                    y1=df["Low"].iloc[i],
+                    fillcolor="lightskyblue",
+                    opacity=0.3,
+                    line_width=0,
+                    layer="below",
+                )
+
+    @staticmethod
+    def add_drawdown(fig, df, symbol) -> None:
+        # 计算回撤
+        cumulative = df["Close"] / df["Close"].iloc[0]  # 归一化净值
+        running_max = cumulative.cummax()
+        drawdown = (cumulative / running_max - 1) * 100  # 转为百分比
+
+        # fig = go.Figure()
+
+        # 绘制回撤填充图 (Waterfall Style)
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=drawdown,
+                fill="tozeroy",  # 填充到 Y=0
+                mode="lines",
+                line=dict(color="red", width=0.5),
+                fillcolor="rgba(255, 0, 0, 0.3)",  # 半透明红
+                name="Drawdown %",
+            ),
+            row=2,
+            col=1,
         )
 
     @staticmethod
@@ -176,6 +283,15 @@ class ChartFactory:
         elif view_type == "CCI":
             # 调用新封装的 CCI 方法
             ChartFactory.add_cci(fig, df, row=2)
+
+        elif view_type == "ROVL":
+            ChartFactory.add_rovl(fig, df, symbol)
+
+        elif view_type == "FVG & BAG":
+            ChartFactory.add_trading_terminal(fig, df, symbol)
+
+        elif view_type == "DrawDown":
+            ChartFactory.add_drawdown(fig, df, symbol)
 
         elif view_type == "BBands":
             bb_u = [c for c in df.columns if c.startswith("BBU_")][0]

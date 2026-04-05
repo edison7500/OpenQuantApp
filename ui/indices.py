@@ -1,7 +1,6 @@
 import datetime
 
 import pandas as pd
-import pandas_ta as ta  # noqa
 import pytz
 import streamlit as st
 import yfinance as yf
@@ -16,6 +15,7 @@ from ui.components.fragments import (
     news_sidebar_fragment,
     symbolmeta_sidebar_fragment,
 )
+from ui.components.analysis_tabs import render_analysis_tabs
 
 # from pprint import pprint
 
@@ -119,81 +119,7 @@ def main():
                 )
             if not hist.empty:
                 # --- Tabs 布局 ---
-                tab_rvol, tab_rsi, tab_macd, tab_bbands, tab_drawdown = (
-                    st.tabs(
-                        [
-                            "RVOL 视图",
-                            "📊 RSI 指标",
-                            "📈 MACD 指标",
-                            "🌀 布林带通道",
-                            "📉 风险回撤",
-                        ],
-                        width="stretch",
-                    )
-                )
-                with tab_rvol:
-                    # current_price = hist["Close"].iloc[-1]
-                    # # st.metric("当前价格 (Current Price)", f"${current_price:.2f}")
-                    # tab_rvol.metric(
-                    #     "当前价格 (Current Price)", f"${current_price:.2f}"
-                    # )
-
-                    # hist = process_data_with_rvol(hist)
-                    fig = chart.create_rvol_chart(hist, symbol)
-                    st.plotly_chart(
-                        fig, width="stretch", config={"displayModeBar": False}
-                    )
-
-                with tab_rsi:
-                    fig_rsi = chart.create_rsi_view(hist, symbol)
-                    st.plotly_chart(
-                        fig_rsi,
-                        width="stretch",
-                        config={"displayModeBar": False},
-                    )
-
-                with tab_macd:
-                    # fig_macd = chart.create_macd_view(hist, symbol)
-                    fig_macd = chart.create_macd_view_with_signals(
-                        hist, symbol
-                    )
-                    st.plotly_chart(
-                        fig_macd,
-                        width="stretch",
-                        config={"displayModeBar": False},
-                    )
-
-                with tab_bbands:
-                    fig_bbands = chart.create_bbands_view(hist, symbol)
-                    st.plotly_chart(
-                        fig_bbands,
-                        width="stretch",
-                        config={"displayModeBar": False},
-                    )
-
-                with tab_drawdown:
-                    # 计算关键指标
-                    drawdown_series = calculate_drawdown(
-                        hist["Close"].pct_change(fill_method=None)
-                    )  # 示例使用收盘价
-                    max_dd = drawdown_series.min() * 100
-                    current_dd = drawdown_series.iloc[-1] * 100
-
-                    tab_drawdown.subheader("策略风险分析")
-                    # 用 Streamlit Metrics 显示最大回撤
-                    tab_drawdown.metric(
-                        "最大回撤 (Max Drawdown)", f"{max_dd:.2f}%"
-                    )
-                    tab_drawdown.metric(
-                        "当前回撤 (Current Drawdown)", f"{current_dd:.2f}%"
-                    )
-
-                    fig_drawdown = chart.create_drawdown_chart(hist, symbol)
-                    st.plotly_chart(
-                        fig_drawdown,
-                        width="stretch",
-                        config={"displayModeBar": False},
-                    )
+                render_analysis_tabs(hist, symbol)
         else:
             # 当用户刚点选了开始日期，还没点结束日期时，给出提示
             st.info("请选择一个完整的开始和结束日期范围。")
