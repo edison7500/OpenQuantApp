@@ -39,7 +39,7 @@ def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
     else:
         name = info["shortName"]
 
-    symbol = models.SymbolMeta(
+    symbol_meta: models.SymbolMeta = models.SymbolMeta(
         symbol=info["symbol"],
         name=name,
         asset_type=info["typeDisp"],
@@ -48,7 +48,7 @@ def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
         exchange=info["exchange"],
         currency=info["currency"],
     )
-    db.create_symbolmeta(symbol)
+    db.create_symbol_meta(symbol_meta)
 
 
 @app.command()

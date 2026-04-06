@@ -1,4 +1,3 @@
-from pprint import pprint
 
 import streamlit as st
 import yfinance as yf

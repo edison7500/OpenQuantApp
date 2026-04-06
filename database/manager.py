@@ -1,75 +1,55 @@
 from typing import List, Optional
 
-import streamlit as st
-from sqlmodel import Session, SQLModel, select
-
 from database import models
+from database.news_manager import NewsManager
+from database.symbol_manager import SymbolManager
 
 
 class DatabaseManager(object):
+    """
+    数据库管理器 - 组合 SymbolManager 和 NewsManager
+    为向后兼容保留的薄封装
+    """
+
     def __init__(self, conn=None) -> None:
-        if conn is None:
-            _conn = st.connection("quant_db", type="sql")
-        else:
-            _conn = conn
-        self.engine = _conn.engine
-        self.session = Session(self.engine)
+        self.symbol = SymbolManager(conn)
+        self.news = NewsManager(conn)
 
     def init_db(self):
         """初始化表结构"""
-        with self.engine.begin():
-            SQLModel.metadata.create_all(self.engine)
+        self.symbol.init_db()
+        self.news.init_db()
 
-    def save_news(self, news: models.MarketNews):
-        """异步保存新闻"""
-        with self.session() as session:
-            session.add(news)
-            session.commit()
-
-    def create_symbolmeta(self, symbol: models.SymbolMeta):
-        with self.session as session:
-            session.add(symbol)
-            session.commit()
+    # === Symbol 代理方法 (向后兼容) ===
 
     def get_active_symbols(
         self, asset_type: str = "Equity"
     ) -> Optional[List[str]]:
-        """获取需要同步的股票列表"""
-        # 使用 SQLModel 的 select 语法...
-        with self.session as session:
-            statement = (
-                select(models.SymbolMeta.symbol)
-                .where(
-                    models.SymbolMeta.is_active,
-                    models.SymbolMeta.asset_type == asset_type,
-                )
-                .order_by(models.SymbolMeta.symbol)
-            )
-            # symbols = session.exec(statement).scalars().all()
-            symbols = session.exec(statement).all()
+        """获取活跃的股票代码列表"""
+        return self.symbol.get_active_symbols(asset_type)
 
-            if not symbols:
-                return
-            else:
-                return symbols
-
-    def get_symbol_meta(self, symbol) -> models.SymbolMeta:
-        with self.session as session:
-            statement = select(models.SymbolMeta).where(
-                models.SymbolMeta.symbol == symbol
-            )
-            obj: models.SymbolMeta = (
-                session.execute(statement).scalars().first()
-            )
-
-        return obj
+    def get_symbol_meta(self, symbol) -> Optional[models.SymbolMeta]:
+        """获取单个标的元数据"""
+        return self.symbol.get_symbol_meta(symbol)
 
     def get_active_symbolmetas(self) -> Optional[List[models.SymbolMeta]]:
-        with self.session as session:
-            statement = select(models.SymbolMeta).where(
-                models.SymbolMeta.is_active,
-            )
-            symbolmetas = session.exec(statement).all()
+        """获取所有活跃的标的元数据"""
+        return self.symbol.get_active_symbolmetas()
 
-            if symbolmetas:
-                return symbolmetas
+    def get_all_symbolmetas(self) -> Optional[List[models.SymbolMeta]]:
+        """获取所有标的元数据（包括非活跃）"""
+        return self.symbol.get_all_symbolmetas()
+
+    def create_symbol_meta(self, symbol_meta: models.SymbolMeta):
+        """创建新的标的元数据记录"""
+        self.symbol.create_symbol_meta(symbol_meta)
+
+    def delete_symbol(self, symbol: str):
+        """删除指定的标的元数据记录"""
+        self.symbol.delete_symbol(symbol)
+
+    # === News 代理方法 (向后兼容) ===
+
+    def save_news(self, news: models.MarketNews):
+        """保存新闻"""
+        self.news.save_news(news)
