@@ -20,4 +20,4 @@ def render_dashboard_tabs(df, symbol):
     for idx, (func, title) in plot_map.items():
         with tabs[idx]:
             fig = func(df, symbol)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
