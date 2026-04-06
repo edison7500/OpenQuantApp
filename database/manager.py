@@ -73,3 +73,25 @@ class DatabaseManager(object):
 
             if symbolmetas:
                 return symbolmetas
+
+    def get_all_symbolmetas(self) -> Optional[List[models.SymbolMeta]]:
+        """获取所有 SymbolMeta 记录（包括非活跃）"""
+        with self.session as session:
+            statement = select(models.SymbolMeta).order_by(
+                models.SymbolMeta.symbol
+            )
+            return session.exec(statement).all()
+
+    def create_symbol_meta(self, symbol_meta: models.SymbolMeta):
+        """创建新的 SymbolMeta 记录"""
+        with self.session as session:
+            session.add(symbol_meta)
+            session.commit()
+
+    def delete_symbol(self, symbol: str):
+        """删除指定的 SymbolMeta 记录"""
+        with self.session as session:
+            obj = session.get(models.SymbolMeta, symbol)
+            if obj:
+                session.delete(obj)
+                session.commit()

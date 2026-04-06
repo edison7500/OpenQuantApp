@@ -10,7 +10,6 @@ from engine import (  # load_and_process_data_with_range,; process_data_with_rvo
     calculate_drawdown,
     load_and_process_full_pipeline,
 )
-from engine.chart_factory import ChartFactory
 from ui.components.fragments import (
     news_sidebar_fragment,
     symbolmeta_sidebar_fragment,
