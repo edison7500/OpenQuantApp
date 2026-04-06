@@ -12,7 +12,7 @@ uv sync
 uv run streamlit run app.py
 
 # Run the cron/automation tool
-uv run streamlit run tools/cron.py
+uv run python db_manage.py add -s aapl 
 ```
 
 ## Project Overview
