@@ -114,7 +114,7 @@ class ChartFactory:
             )
 
     @staticmethod
-    def add_cci(fig, df, row=2) -> None:
+    def add_cci(fig, df, row=2):
         """组件：绘制 CCI (顺势指标)"""
         cci_col = [c for c in df.columns if "CCI" in c][0]
 
@@ -274,10 +274,18 @@ class ChartFactory:
             )
             # 添加 70/30 警戒线
             fig.add_hline(
-                y=70, line_dash="dash", line_color="red", row=2, col=1
+                y=70,
+                line_dash="dash",
+                line_color="red",
+                row=2,
+                col=1,  # type: ignore
             )
             fig.add_hline(
-                y=30, line_dash="dash", line_color="green", row=2, col=1
+                y=30,
+                line_dash="dash",
+                line_color="green",
+                row=2,
+                col=1,  # type: ignore
             )
 
         elif view_type == "CCI":
