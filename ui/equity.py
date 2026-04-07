@@ -8,7 +8,7 @@ from engine import (
 )  # load_and_process_data_with_range,; process_data_with_rvol,; calculate_drawdown,
 from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
-    news_sidebar_fragment,
+    news_grid_fragment,
     symbolmeta_sidebar_fragment,
 )
 from ui.components.sidebar import render_common_sidebar
@@ -121,6 +121,9 @@ def main():
             if not hist.empty:
                 # --- Tabs 布局 ---
                 render_analysis_tabs(hist, symbol)
+
+                # --- 新增：主视图下方的 Grid 新闻区 ---
+                news_grid_fragment(symbol)
         else:
             # 当用户刚点选了开始日期，还没点结束日期时，给出提示
             st.info("请选择一个完整的开始和结束日期范围。")
@@ -128,19 +131,14 @@ def main():
     with col_news:
         symbol_meta = get_symbol_meta(symbol)
 
-        # st.markdown(f"### {symbol_meta.name} 的详情")
+        # st.subheader(f"### {symbol_meta.name} 的详情")
         st.subheader(f"{symbol_meta.name} ({symbol_meta.symbol})")
 
         with st.spinner(f"正在加载 {symbol} 的数据..."):
             symbolmeta_sidebar_fragment(symbol)
 
             # st.caption("最后更新: 2026-03-24 10:00")
-        st.divider()  # 视觉分割线
-
-        # --- 下方新闻动态区 ---
-        st.caption("最新市场动态")
-        with st.container(height=500):  # 开启滚动模式，确保不挤占 Meta 区
-            news_sidebar_fragment(symbol)
 
 
-main()
+if __name__ == "__main__":
+    main()
