@@ -1,6 +1,7 @@
+from datetime import datetime
+
 import streamlit as st
 import yfinance as yf
-from datetime import datetime
 
 from database.manager import DatabaseManager
 from database.models import SymbolMeta
@@ -117,7 +118,7 @@ def main():
         search_query = st.text_input(
             "搜索",
             placeholder="输入代码或名称进行搜索...",
-            label_visibility="collapsed",
+            # label_visibility="collapsed",
         )
 
     with col_filter:
@@ -170,10 +171,13 @@ def main():
             # 使用 session_state 存储选择状态
             if "delete_selection" not in st.session_state:
                 st.session_state.delete_selection = []
+            if "update_selection" not in st.session_state:
+                st.session_state.update_selection = []
 
             # 添加删除列
             df_display = df.copy()
             df_display["删除"] = [False] * len(df_display)
+            df_display["更新"] = [False] * len(df_display)
 
             # 显示带复选框的表格
             edited_df = st.data_editor(
@@ -186,14 +190,22 @@ def main():
                         help="勾选要删除的资产",
                         default=False,
                     ),
+                    "更新": st.column_config.CheckboxColumn(
+                        "更新",
+                        help="勾选要更新的资产",
+                        default=False,
+                    ),
                 },
-                disabled=[col for col in df.columns if col != "删除"],
+                disabled=[
+                    col for col in df.columns if col not in ["删除", "更新"]
+                ],
+                # disabled=[col for col in df.columns if col != "删除"],
                 key="asset_table",
             )
 
             # 底部操作区
             st.divider()
-            col1, col2 = st.columns([1, 3])
+            col1, col2, col3 = st.columns([1, 1, 3])
 
             with col1:
                 selected_for_delete = edited_df[edited_df["删除"]][
@@ -202,10 +214,19 @@ def main():
                 st.write(
                     f"已选择 **{len(selected_for_delete)}** 个资产进行删除"
                 )
-
             with col2:
+                selected_for_update = edited_df[edited_df["更新"]][
+                    "代码"
+                ].tolist()
+                st.write(
+                    f"已选择 **{len(selected_for_update)}** 个资产进行更新"
+                )
+
+            with col3:
                 if st.button(
-                    "💾 保存更改", type="primary", use_container_width=True
+                    "💾 保存更改",
+                    type="primary",
+                    width="content",
                 ):
                     if selected_for_delete:
                         try:
@@ -217,8 +238,38 @@ def main():
                             st.rerun()
                         except Exception as e:
                             st.error(f"删除失败：{str(e)}")
+                    # else:
+                    # st.info("没有选择要删除的资产")
+                    elif selected_for_update:
+                        try:
+                            for sym in selected_for_update:
+                                # 获取最新信息并更新
+                                ticker = yf.Ticker(sym)
+                                info = ticker.info
+                                if info:
+                                    updated_meta = SymbolMeta(
+                                        symbol=sym,
+                                        name=info.get("displayName")
+                                        or info.get("shortName", ""),
+                                        asset_type=info.get(
+                                            "typeDisp", "Equity"
+                                        ),
+                                        sector=info.get("sector"),
+                                        industry=info.get("industry"),
+                                        exchange=info.get("exchange"),
+                                        currency=info.get("currency", "USD"),
+                                        is_active=True,
+                                        updated_at=datetime.now(),
+                                    )
+                                    db_manager.update_symbol_meta(updated_meta)
+                            st.success(
+                                f"已更新 {len(selected_for_update)} 个资产"
+                            )
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"更新失败：{str(e)}")
                     else:
-                        st.info("没有选择要删除的资产")
+                        st.info("没有选择要更新或删除的资产")
         else:
             st.info("暂无匹配的资产数据")
     else:

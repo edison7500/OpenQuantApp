@@ -44,6 +44,10 @@ class DatabaseManager(object):
         """创建新的标的元数据记录"""
         self.symbol.create_symbol_meta(symbol_meta)
 
+    def update_symbol_meta(self, symbol_meta: models.SymbolMeta):
+        """更新标的元数据记录"""
+        self.symbol.update_symbol_meta(symbol_meta)
+
     def delete_symbol(self, symbol: str):
         """删除指定的标的元数据记录"""
         self.symbol.delete_symbol(symbol)

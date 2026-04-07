@@ -26,29 +26,54 @@ def init():
     console.print("[bold green]✔ 数据库已就绪！[/bold green]")
 
 
-@app.command()
-def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
-    """
-    添加需要监控的 Symbol， 并通过 yfinance 获取原信息
-    """
+def _get_symbol_info(symbol: str) -> models.SymbolMeta:
+    """从 yfinance 获取标的信息并转换为 SymbolMeta 模型"""
     ticker = yf.Ticker(symbol.upper())
     info = ticker.info
 
-    if "displayName" in info:
-        name = info["displayName"]
-    else:
-        name = info["shortName"]
+    if not info or "symbol" not in info:
+        raise ValueError(f"无法获取 {symbol} 的信息")
 
-    symbol_meta: models.SymbolMeta = models.SymbolMeta(
+    name = info.get("displayName") or info.get("longName") or info.get("shortName") or symbol
+
+    return models.SymbolMeta(
         symbol=info["symbol"],
         name=name,
-        asset_type=info["typeDisp"],
+        asset_type=info.get("typeDisp", "Equity"),
         sector=info.get("sector"),
         industry=info.get("industry"),
-        exchange=info["exchange"],
-        currency=info["currency"],
+        exchange=info.get("exchange"),
+        currency=info.get("currency"),
     )
-    db.create_symbol_meta(symbol_meta)
+
+
+@app.command()
+def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
+    """
+    添加需要监控的 Symbol， 并通过 yfinance 获取元信息
+    """
+    try:
+        with console.status(f"[bold green]正在获取 {symbol} 的信息..."):
+            symbol_meta = _get_symbol_info(symbol)
+        
+        db.create_symbol_meta(symbol_meta)
+        console.print(f"[bold green]✔ 已成功添加 {symbol_meta.symbol} ({symbol_meta.name})[/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]✘ 添加失败: {str(e)}[/bold red]")
+
+
+@app.command()
+def update(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
+    """
+    更新已存在的 Symbol 元信息
+    """
+    try:
+        with console.status(f"[bold blue]正在更新 {symbol} 的信息..."):
+            symbol_meta = _get_symbol_info(symbol)
+            db.update_symbol_meta(symbol_meta)
+        console.print(f"[bold green]✔ 已成功更新 {symbol_meta.symbol} 的元信息[/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]✘ 更新失败: {str(e)}[/bold red]")
 
 
 @app.command()

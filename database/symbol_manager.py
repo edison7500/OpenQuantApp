@@ -71,6 +71,21 @@ class SymbolManager(object):
             session.add(symbol_meta)
             session.commit()
 
+    def update_symbol_meta(self, symbol_meta: models.SymbolMeta):
+        """更新标的元数据记录"""
+        with self.session as session:
+            existing = session.get(models.SymbolMeta, symbol_meta.symbol)
+            if not existing:
+                raise ValueError(
+                    f"Symbol {symbol_meta.symbol} 不存在，无法更新"
+                )
+            # 更新字段
+            for field in models.SymbolMeta.__fields__.keys():
+                setattr(existing, field, getattr(symbol_meta, field))
+            session.add(existing)
+            session.commit()
+            session.refresh(existing)
+
     def delete_symbol(self, symbol: str):
         """删除指定的标的元数据记录"""
         with self.session as session:
