@@ -1,8 +1,10 @@
-import streamlit as st
 import datetime
+
 import pytz
+import streamlit as st
+
 from database.resource import get_symbols
-from engine import load_and_process_full_pipeline, calculate_drawdown
+from engine import calculate_drawdown, load_and_process_full_pipeline
 
 
 def render_common_sidebar(asset_type="equity") -> dict:
@@ -14,7 +16,10 @@ def render_common_sidebar(asset_type="equity") -> dict:
         st.header(f"{asset_type.upper()} 參數設置")
 
         # 1. 獲取標的列表 (可根據 asset_type 過濾)
-        portfolio = get_symbols()  # noqa: F823
+        # 注意: get_symbols 默認是 "Equity"，所以需要傳入對應的 asset_type
+        # 這裡做一個簡單的轉換，確保首字母大寫以符合 database/resource.py 的預期
+        db_asset_type = asset_type.capitalize()
+        portfolio = get_symbols(asset_type=db_asset_type)
         if not portfolio:
             st.error("無法獲取標的列表")
             st.stop()
@@ -42,8 +47,6 @@ def render_common_sidebar(asset_type="equity") -> dict:
         # 4. 數據維護按鈕
         if st.button("🔄 強制刷新數據"):
             # 這裡調用你原本的 clear 邏輯
-            from database.resource import get_symbols
-
             get_symbols.clear()
             load_and_process_full_pipeline.clear()
             calculate_drawdown.clear()

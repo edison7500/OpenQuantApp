@@ -6,15 +6,12 @@ import streamlit as st
 import yfinance as yf
 
 from database.resource import get_arctic_library, get_symbol_meta, get_symbols
-from engine import (
-    calculate_drawdown,
-    load_and_process_full_pipeline,
-)
+from engine import calculate_drawdown, load_and_process_full_pipeline
+from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
     news_sidebar_fragment,
     symbolmeta_sidebar_fragment,
 )
-from ui.components.analysis_tabs import render_analysis_tabs
 
 # from pprint import pprint
 

@@ -180,3 +180,6 @@ pyrightconfig.json
 stock_db
 market_data
 quant.db
+
+.gemini/
+gha-creds-*.json

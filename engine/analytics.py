@@ -1,4 +1,3 @@
-
 import pandas as pd
 import pandas_ta as ta  # noqa
 import streamlit as st

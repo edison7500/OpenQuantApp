@@ -1,20 +1,17 @@
-import datetime
-
 import pandas as pd
-import pytz
 import streamlit as st
 import yfinance as yf
 
-from database.resource import get_arctic_library, get_symbol_meta, get_symbols
-from engine import (  # load_and_process_data_with_range,; process_data_with_rvol,
-    calculate_drawdown,
+from database.resource import get_arctic_library, get_symbol_meta
+from engine import (
     load_and_process_full_pipeline,
-)
+)  # load_and_process_data_with_range,; process_data_with_rvol,; calculate_drawdown,
+from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
     news_sidebar_fragment,
     symbolmeta_sidebar_fragment,
 )
-from ui.components.analysis_tabs import render_analysis_tabs
+from ui.components.sidebar import render_common_sidebar
 
 # from pprint import pprint
 
@@ -50,52 +47,59 @@ def main():
     )
     # st.title("📈 量化投研 Dashboard")
 
-    # 侧边栏交互
-    with st.sidebar:
-        st.header("参数设置")
+    # --- 引入通用侧边栏 ---
+    params = render_common_sidebar(asset_type="equity")
+    symbol = params["symbol"]
+    date_selection = params["date_range"]
+    timeframe = params["timeframe"]
+    rsi_length = params["rsi_length"]
 
-        portfolio = get_symbols()
-        if "symbol" not in st.session_state:
-            st.session_state.setdefault("symbol", portfolio[0])
+    # 侧边栏交互 (原代码已注释，以便于 debug)
+    # with st.sidebar:
+    #     st.header("参数设置")
 
-        symbol = st.selectbox(
-            "选择分析标的",
-            options=portfolio,
-            key="symbol",
-        )
+    #     portfolio = get_symbols()
+    #     if "symbol" not in st.session_state:
+    #         st.session_state.setdefault("symbol", portfolio[0])
 
-        # --- 新增：日期范围选择器 ---
-        now = datetime.datetime.now(tz=pytz.UTC)
-        default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
+    #     symbol = st.selectbox(
+    #         "选择分析标的",
+    #         options=portfolio,
+    #         key="symbol",
+    #     )
 
-        # date_input 允许传入一个 tuple 来选择区间
-        date_selection = st.date_input(
-            "选择时间范围",
-            value=(default_start, now),
-            max_value=now + datetime.timedelta(days=1),
-        )
+    #     # --- 新增：日期范围选择器 ---
+    #     now = datetime.datetime.now(tz=pytz.UTC)
+    #     default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
 
-        timeframe = st.select_slider(
-            "TimeFrame",
-            options=[
-                "1m",
-                "1h",
-                "D",
-            ],
-            value="D",
-        )
+    #     # date_input 允许传入一个 tuple 来选择区间
+    #     date_selection = st.date_input(
+    #         "选择时间范围",
+    #         value=(default_start, now),
+    #         max_value=now + datetime.timedelta(days=1),
+    #     )
 
-        rsi_length = st.slider("RSI 周期", min_value=5, max_value=30, value=14)
+    #     timeframe = st.select_slider(
+    #         "TimeFrame",
+    #         options=[
+    #             "1m",
+    #             "1h",
+    #             "D",
+    #         ],
+    #         value="D",
+    #     )
 
-        # auto_refresh = st.toggle("开启自动刷新", value=False)
+    #     rsi_length = st.slider("RSI 周期", min_value=5, max_value=30, value=14)
 
-        # 添加一个强制刷新按钮来清除缓存
-        if st.button("🔄 强制刷新数据"):
-            update_database(symbol)
-            get_symbols.clear()
-            # load_and_process_data_with_range.clear()
-            load_and_process_full_pipeline.clear()
-            calculate_drawdown.clear()
+    #     # auto_refresh = st.toggle("开启自动刷新", value=False)
+
+    #     # 添加一个强制刷新按钮来清除缓存
+    #     if st.button("🔄 强制刷新数据"):
+    #         update_database(symbol)
+    #         get_symbols.clear()
+    #         # load_and_process_data_with_range.clear()
+    #         load_and_process_full_pipeline.clear()
+    #         calculate_drawdown.clear()
 
     col_main, col_news = st.columns([3, 1])
 

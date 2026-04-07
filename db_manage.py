@@ -34,7 +34,12 @@ def _get_symbol_info(symbol: str) -> models.SymbolMeta:
     if not info or "symbol" not in info:
         raise ValueError(f"无法获取 {symbol} 的信息")
 
-    name = info.get("displayName") or info.get("longName") or info.get("shortName") or symbol
+    name = (
+        info.get("displayName")
+        or info.get("longName")
+        or info.get("shortName")
+        or symbol
+    )
 
     return models.SymbolMeta(
         symbol=info["symbol"],
@@ -55,9 +60,11 @@ def add(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
     try:
         with console.status(f"[bold green]正在获取 {symbol} 的信息..."):
             symbol_meta = _get_symbol_info(symbol)
-        
+
         db.create_symbol_meta(symbol_meta)
-        console.print(f"[bold green]✔ 已成功添加 {symbol_meta.symbol} ({symbol_meta.name})[/bold green]")
+        console.print(
+            f"[bold green]✔ 已成功添加 {symbol_meta.symbol} ({symbol_meta.name})[/bold green]"
+        )
     except Exception as e:
         console.print(f"[bold red]✘ 添加失败: {str(e)}[/bold red]")
 
@@ -71,7 +78,9 @@ def update(symbol: Annotated[str, typer.Option("--symbol", "-s")]):
         with console.status(f"[bold blue]正在更新 {symbol} 的信息..."):
             symbol_meta = _get_symbol_info(symbol)
             db.update_symbol_meta(symbol_meta)
-        console.print(f"[bold green]✔ 已成功更新 {symbol_meta.symbol} 的元信息[/bold green]")
+        console.print(
+            f"[bold green]✔ 已成功更新 {symbol_meta.symbol} 的元信息[/bold green]"
+        )
     except Exception as e:
         console.print(f"[bold red]✘ 更新失败: {str(e)}[/bold red]")
 
