@@ -14,7 +14,6 @@ class NewsEngine(object):
         self.symbol = symbol
 
     def get_raw_news(self) -> pd.DataFrame:
-
         end = datetime.now()
         start = end - timedelta(days=7)
 

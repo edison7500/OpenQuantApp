@@ -124,7 +124,15 @@ def main():
     with col_filter:
         asset_type_filter = st.selectbox(
             "资产类型筛选",
-            options=["全部", "Equity", "ETF", "Index", "Crypto"],
+            options=[
+                "全部",
+                "Equity",
+                "ETF",
+                "Index",
+                "Crypto",
+                "Currency",
+                "Futures",
+            ],
             index=0,
         )
 

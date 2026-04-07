@@ -25,17 +25,18 @@ dependencies = [
     "yfinance>=1.2.0",
 ]
 
-# [tool.uv]
-# dev-dependencies = [
-#     "pytest>=8.0.0",
-#     "black>=24.0.0",
-#     "ruff>=0.3.0",
-# ]
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.3.0",
+    "pre-commit>=3.6.0",
+]
 
 # 针对 Streamlit 的运行配置
 # [tool.uv.scripts]
 # dev = "streamlit run app.py"
 # sync = "python sync_engine.py"
+# db = "python db_manage.py"
 
 
 [tool.ruff]

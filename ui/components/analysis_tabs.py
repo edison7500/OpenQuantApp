@@ -1,9 +1,9 @@
 import streamlit as st
 
-from engine.chart_factory import ChartFactory
-from engine import (  # load_and_process_data_with_range,; process_data_with_rvol,
+from engine import (
     calculate_drawdown,
-)
+)  # load_and_process_data_with_range,; process_data_with_rvol,
+from engine.chart_factory import ChartFactory
 
 
 def render_analysis_tabs(hist, symbol):
@@ -55,7 +55,9 @@ def render_analysis_tabs(hist, symbol):
     with tabs[3]:
         fig = ChartFactory.build_view(hist, symbol, "ROVL")
         st.plotly_chart(
-            fig, use_container_width=True, config={"displayModeBar": False}
+            fig,
+            width="stretch",
+            config={"displayModeBar": False},
         )
 
     # 5. 交易終端 - 綜合所有訊號後的執行界面

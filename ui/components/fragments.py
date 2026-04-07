@@ -1,4 +1,3 @@
-
 import streamlit as st
 import yfinance as yf
 
@@ -89,16 +88,69 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
 
 
 @st.fragment
+def news_grid_fragment(symbol: str) -> None:
+    """在主视图下方以 3 栏 Grid 形式展示新闻"""
+    st.markdown("---")
+    st.subheader(f"📰 {symbol} 市场动态 (3栏视图)")
+
+    # 局部刷新按钮
+    if st.button("🔄 刷新新闻", key="refresh_grid_news"):
+        st.cache_data.clear()
+
+    with st.spinner("正在获取最新资讯..."):
+        df = fetch_and_analyze(symbol)
+
+    if not df.empty:
+        # 情感分布小统计 (放在最上面一行)
+        sentiment_counts = df["sentiment_label"].value_counts()
+        st.caption("过去7天情感分布趋势")
+        st.bar_chart(sentiment_counts, horizontal=True, height=120)
+
+        st.divider()
+
+        # 使用 columns 实现 3 栏 Grid
+        cols = st.columns(3)
+        for i, (_, row) in enumerate(df.head(12).iterrows()):
+            # 轮流放入 3 个列中
+            with cols[i % 3]:
+                with st.container(border=True, height=280):
+                    # 情感标签
+                    label_color = {
+                        "Positive": "green",
+                        "Neutral": "gray",
+                        "Negative": "red",
+                    }.get(row["sentiment_label"], "blue")
+
+                    st.markdown(
+                        f":{label_color}[**{row['sentiment_label']}**] (得分: {row['sentiment_score']:.2f})"
+                    )
+                    st.markdown(
+                        f"**{row['headline'][:80]}...**"
+                        if len(row["headline"]) > 80
+                        else f"**{row['headline']}**"
+                    )
+                    st.caption(
+                        f"{row['source']} | {row['datetime'].strftime('%Y-%m-%d')}"
+                    )
+                    st.link_button(
+                        "阅读原文",
+                        row["url"],
+                        icon="🔗",
+                        use_container_width=True,
+                    )
+    else:
+        st.info("暂无新闻资讯")
+
+
+@st.fragment
 def news_sidebar_fragment(symbol: str) -> None:
     st.subheader(f"📰 {symbol} 實時新聞")
 
     # 局部刷新按鈕
     if st.button("🔄 刷新新聞 (局部)"):
         st.cache_data.clear()  # 清除緩存以獲取最新
-        # fragment 會自動處理局部重新渲染
 
     with st.spinner("讀取中..."):
-        # df = get_cached_news(symbol)
         df = fetch_and_analyze(symbol)
 
     if not df.empty:
@@ -112,7 +164,6 @@ def news_sidebar_fragment(symbol: str) -> None:
         # 新闻列表渲染
         for _, row in df.head(12).iterrows():
             with st.container(border=True):
-                # 用不同颜色显示标签
                 st.markdown(
                     f"**{row['sentiment_label']}** (得分: {row['sentiment_score']:.2f})"
                 )
