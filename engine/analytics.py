@@ -19,7 +19,8 @@ def add_technical_indicators(
     df.ta.wma(length=wma_len, append=True)
     df.ta.bbands(length=bb_len, std=2, append=True)
 
-    # 2. 動量指標 (不同量綱，用於副圖)
+    # 2. 波動率 & 動量指標 (不同量綱，用於副圖)
+    # pandas_ta.bbands 會生成 BBL, BBM, BBU, BBB, BBP
     df.ta.rsi(length=rsi_len, append=True)
     df.ta.cci(length=rsi_len, append=True)
     df.ta.macd(append=True)

@@ -173,15 +173,10 @@ class ChartFactory:
         fig.add_hline(
             y=1.0, line_dash="dash", line_color="gray", row=row, col=col
         )
-        fig.add_hline(
-            y=2.0, line_dash="dot", line_color="red", row=row, col=col
-        )
-
         fig.update_layout(
             title=f"{symbol} - ROVL 视图",
             template="plotly_white",
             xaxis_rangeslider_visible=False,
-            height=800,
         )
 
     @staticmethod
@@ -247,11 +242,47 @@ class ChartFactory:
         )
 
     @staticmethod
-    def build_view(df: pd.DataFrame, symbol: str, view_type: str = "MACD"):
+    def add_bbands_volatility(fig, df, row=2):
+        """组件：绘制 Bollinger Band Width (波动率深度)"""
+        bbb_col = [c for c in df.columns if c.startswith("BBB_")][0]
+
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[bbb_col],
+                name="BB Width",
+                line=dict(color="#00D2FF", width=1.5),
+            ),
+            row=row,
+            col=1,
+        )
+
+        # 添加基准线
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", row=row, col=1)
+
+    @staticmethod
+    def build_view(
+        df: pd.DataFrame,
+        symbol: str,
+        view_type: str = "MACD",
+        height: int = 600,
+    ):
         """
         工厂入口：根据类型组装图表
         """
-        fig = ChartFactory._create_base()
+        # Determine if we need subplots (a second row for indicators)
+        needs_subplots = view_type in [
+            "MACD",
+            "RSI",
+            "CCI",
+            "ROVL",
+            "DrawDown",
+            "BBands",
+        ]
+        rows = 2 if needs_subplots else 1
+        heights = [0.7, 0.3] if needs_subplots else [1.0]
+
+        fig = ChartFactory._create_base(rows=rows, heights=heights)
         ChartFactory.add_candlestick(fig, df)
         ChartFactory.add_signal_markers(fig, df)
 
@@ -334,10 +365,13 @@ class ChartFactory:
                 )
             )  # 添加通道填充色
 
+            # 新增：绘制波动率深度 (BB Width)
+            ChartFactory.add_bbands_volatility(fig, df, row=2)
+
         fig.update_layout(
             title=f"{symbol} - {view_type} 分析",
             xaxis_rangeslider_visible=False,
-            height=800,
+            height=height,
             template="plotly_dark",
         )
         return fig
@@ -348,6 +382,7 @@ class ChartFactory:
         symbol: str,
         view_type: str = "MACD",
         include_osc=True,
+        height: int = 600,
     ):
         rows = 3 if include_osc else 1
         heights = [0.6, 0.2, 0.2] if include_osc else [1.0]
@@ -416,7 +451,7 @@ class ChartFactory:
         fig.update_layout(
             title=f"{symbol} - {view_type} 分析",
             xaxis_rangeslider_visible=False,
-            height=800,
+            height=height,
             template="plotly_dark",
         )
 
