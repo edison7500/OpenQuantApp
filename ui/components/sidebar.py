@@ -46,9 +46,13 @@ def render_common_sidebar(asset_type="equity") -> dict:
         )
 
         # 3. 技術參數
-        timeframe = st.select_slider(
-            "TimeFrame", options=["1m", "1h", "D"], value="D"
+        tf_display = ["日线", "周线", "月线"]
+        tf_keys = ["D", "W", "M"]
+        tf_selection = st.select_slider(
+            "TimeFrame", options=tf_display, value="日线"
         )
+        timeframe = tf_keys[tf_display.index(tf_selection)]
+
         rsi_length = st.slider("RSI 週期", min_value=5, max_value=30, value=14)
 
         # 4. 數據維護按鈕

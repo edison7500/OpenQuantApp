@@ -20,6 +20,8 @@ class DataSyncEngine:
             "1m": f"{self.ac.library_name}.min1",
             "1h": f"{self.ac.library_name}.min60",
             "D": f"{self.ac.library_name}",
+            "W": f"{self.ac.library_name}.week",
+            "M": f"{self.ac.library_name}.month",
         }
         self._ensure_libraries()
 
