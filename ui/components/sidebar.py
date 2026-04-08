@@ -18,11 +18,11 @@ def render_common_sidebar(asset_type="equity") -> dict:
         # 1. 獲取標的列表 (可根據 asset_type 過濾)
         # 注意: get_symbols 默認是 "Equity"，所以需要傳入對應的 asset_type
         # 這裡做一個簡單的轉換，確保首字母大寫以符合 database/resource.py 的預期
-        if asset_type.lower() == "futures":
-            # 期貨頁面通常也顯示期權
-            portfolio_f = get_symbols(asset_type="Futures") or []
-            portfolio_o = get_symbols(asset_type="Option") or []
-            portfolio = portfolio_f + portfolio_o
+        if asset_type.lower() == "etf":
+            portfolio = get_symbols(asset_type="ETF")
+            #     portfolio_f = get_symbols(asset_type="Futures") or []
+            #     portfolio_o = get_symbols(asset_type="Option") or []
+            #     portfolio = portfolio_f + portfolio_o
         else:
             db_asset_type = asset_type.capitalize()
             portfolio = get_symbols(asset_type=db_asset_type)
