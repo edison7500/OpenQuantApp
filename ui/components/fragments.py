@@ -88,6 +88,58 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
 
 
 @st.fragment
+def financial_reports_sidebar_fragment(symbol: str) -> None:
+    """在侧边栏显示关键财务指标"""
+    st.divider()
+    st.subheader("📊 财务报表 (Financial Reports)")
+
+    ticker = yf.Ticker(symbol)
+
+    try:
+        # 使用 .info 获取更详细的财务指标
+        info = ticker.info
+
+        # 定义要显示的指标映射 (Label: key_in_info)
+        metrics_map = {
+            "ROE": "returnOnEquity",
+            "D/E Ratio": "debtToEquity",
+            "Profit Margin": "profitMargins",
+            "Op. Margin": "operatingMargins",
+            "Div. Yield": "dividendYield",
+            "Trailing EPS": "trailingEps",
+            "Forward EPS": "forwardEps",
+        }
+
+        # 准备要显示的指标列表
+        display_metrics = []
+        for label, key in metrics_map.items():
+            if key in info and info[key] is not None:
+                val = info[key]
+                # 格式化数值
+                if isinstance(val, float):
+                    if label in ["ROE", "Profit Margin", "Op. Margin", "Div. Yield"]:
+                        formatted_val = f"{val * 100:.2f}%"
+                    elif label == "D/E Ratio":
+                        formatted_val = f"{val:.2f}"
+                    else:
+                        formatted_val = f"{val:.2f}"
+                else:
+                    formatted_val = str(val)
+                display_metrics.append((label, formatted_val))
+
+        if display_metrics:
+            # 使用两列布局显示指标
+            cols = st.columns(2)
+            for i, (label, val) in enumerate(display_metrics):
+                cols[i % 2].metric(label, val)
+        else:
+            st.info("暂无详细财务指标")
+
+    except Exception as e:
+        st.error(f"无法加载财务报表: {e}")
+
+
+@st.fragment
 def news_grid_fragment(symbol: str) -> None:
     """在主视图下方以 3 栏 Grid 形式展示新闻"""
     st.markdown("---")
