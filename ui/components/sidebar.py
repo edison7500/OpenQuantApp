@@ -55,6 +55,11 @@ def render_common_sidebar(asset_type="equity") -> dict:
 
         rsi_length = st.slider("RSI 週期", min_value=5, max_value=30, value=14)
 
+        # --- 圖表視覺化選項 ---
+        st.markdown("---")
+        st.subheader("視覺化設置")
+        use_ha = st.checkbox("🕯️ 使用 Heikin-Ashi K线", value=False)
+
         # 4. 數據維護按鈕
         if st.button("🔄 強制刷新數據"):
             # 這裡調用你原本的 clear 邏輯
@@ -69,4 +74,5 @@ def render_common_sidebar(asset_type="equity") -> dict:
             "date_range": date_selection,
             "timeframe": timeframe,
             "rsi_length": rsi_length,
+            "use_ha": use_ha,
         }

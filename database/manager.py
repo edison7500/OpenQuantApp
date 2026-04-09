@@ -1,8 +1,8 @@
 from typing import List, Optional
 
 from database import models
-from database.news_manager import NewsManager
-from database.symbol_manager import SymbolManager
+from database.manage.news_manager import NewsManager
+from database.manage.symbol_manager import SymbolManager
 
 
 class DatabaseManager(object):

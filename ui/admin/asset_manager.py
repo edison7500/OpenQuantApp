@@ -152,7 +152,7 @@ def main():
                     "行业": a.industry or "-",
                     "交易所": a.exchange or "-",
                     "货币": a.currency or "-",
-                    "状态": "活跃" if a.is_active else "非活跃",
+                    "状态": a.is_active,
                     "更新时间": a.updated_at.strftime("%Y-%m-%d %H:%M")
                     if a.updated_at
                     else "-",
@@ -203,10 +203,13 @@ def main():
                         help="勾选要更新的资产",
                         default=False,
                     ),
+                    "状态": st.column_config.CheckboxColumn(
+                        "状态",
+                        help="活跃/非活跃",
+                        default=True,
+                    ),
                 },
-                disabled=[
-                    col for col in df.columns if col not in ["删除", "更新"]
-                ],
+                disabled=[col for col in df.columns if col not in ["状态"]],
                 # disabled=[col for col in df.columns if col != "删除"],
                 key="asset_table",
             )
@@ -236,6 +239,29 @@ def main():
                     type="primary",
                     width="content",
                 ):
+                    # 1. 处理状态更新 (is_active)
+                    try:
+                        # 找出状态发生变化的行
+                        status_changes = edited_df[
+                            edited_df["状态"] != df_display["状态"]
+                        ]
+                        for _, row in status_changes.iterrows():
+                            sym = row["代码"]
+                            new_status = row["状态"]
+                            # 获取现有元数据并更新状态
+                            meta = db_manager.get_symbol_meta(sym)
+                            if meta:
+                                meta.is_active = new_status
+                                meta.updated_at = datetime.now()
+                                db_manager.update_symbol_meta(meta)
+                        if not status_changes.empty:
+                            st.toast(
+                                f"已更新 {len(status_changes)} 个资产的状态"
+                            )
+                    except Exception as e:
+                        st.error(f"状态更新失败：{str(e)}")
+
+                    # 2. 处理删除
                     if selected_for_delete:
                         try:
                             for sym in selected_for_delete:
@@ -246,8 +272,8 @@ def main():
                             st.rerun()
                         except Exception as e:
                             st.error(f"删除失败：{str(e)}")
-                    # else:
-                    # st.info("没有选择要删除的资产")
+
+                    # 3. 处理元数据更新
                     elif selected_for_update:
                         try:
                             for sym in selected_for_update:
@@ -276,7 +302,14 @@ def main():
                             st.rerun()
                         except Exception as e:
                             st.error(f"更新失败：{str(e)}")
+
+                    # 如果没有删除或更新，但有状态变更，也需要 rerun
+                    if not selected_for_delete and not selected_for_update:
+                        st.rerun()
                     else:
+                        st.rerun()
+
+                    if not selected_for_delete and not selected_for_update:
                         st.info("没有选择要更新或删除的资产")
         else:
             st.info("暂无匹配的资产数据")

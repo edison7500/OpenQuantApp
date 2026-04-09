@@ -1,9 +1,11 @@
 import streamlit as st
 import yfinance as yf
+import pandas as pd
 
 from api.fetch_news import fetch_and_analyze
-from utils.human_readable import format_human_readable  # format_percentage,
+from utils.human_readable import format_human_readable, format_percentage
 from utils.human_readable import format_value, get_display_format
+from database.connections.arcticdb_conn import ArcticDBConnection
 
 
 @st.fragment
@@ -63,27 +65,67 @@ def control_panel_sidebar_fragment(title: str) -> None:
 @st.fragment
 def symbolmeta_sidebar_fragment(symbol: str) -> None:
     ticker = yf.Ticker(symbol)
-    info = ticker.fast_info
-    m1, m2 = st.columns(2)
+    fast_info = ticker.fast_info
+
+    # 从 ArcticDB 获取历史数据 (替代 ticker.history)
+    hist = pd.DataFrame()
     try:
-        val = info["lastPrice"]
+        ac = st.connection("arcticdb", type=ArcticDBConnection)
+        lib = ac.get_library(timeframe="D")
+        if lib.has_symbol(symbol):
+            # 读取该 symbol 的所有数据
+            full_hist = lib.read(symbol).data
+            # 截取最近一个月的数据 (约 22 个交易日)
+            hist = full_hist.tail(30)
+    except Exception as e:
+        st.error(f"ArcticDB 读取失败: {e}")
+
+    # 如果 ArcticDB 没有数据，尝试用 yfinance 做最后的保底 (可选，但为了防止崩溃建议加上 try-except)
+    if hist.empty:
+        try:
+            hist = ticker.history(period="1mo")
+        except Exception:
+            hist = pd.DataFrame()
+
+    m1, m2 = st.columns(2)
+
+    try:
+        val = fast_info["lastPrice"]
         fmt_cfg = get_display_format(ticker)
-        print(fmt_cfg)
+
+        # 计算涨跌幅 (当前价 vs 昨日收盘)
+        delta_val = None
+        if len(hist) >= 2:
+            prev_close = hist["Close"].iloc[-2]
+            delta_val = ((val - prev_close) / prev_close) * 100
+
         m1.metric(
             "当前价格",
             format_value(val, fmt_cfg),
-            # f"+{info['regularMarketChangePercent']:.2}%",
-            # delta=format_percentage(info["regularMarketChangePercent"]),
+            delta=format_percentage(delta_val)
+            if delta_val is not None
+            else None,
         )
-    except KeyError:
+    except (KeyError, IndexError):
         pass
-    m2.metric("成交量", format_human_readable(info["lastVolume"]))
+
+    try:
+        m2.metric("成交量", format_human_readable(fast_info["lastVolume"]))
+    except (KeyError, IndexError):
+        pass
 
     m3, m4 = st.columns(2)
     try:
-        m3.metric("总市值", format_human_readable(info["marketCap"]))
-        m4.metric("波动率", "1.24%")  # 示例
-    except KeyError:
+        m3.metric("总市值", format_human_readable(fast_info["marketCap"]))
+
+        # 计算波动率 (年化标准差)
+        vol_str = "N/A"
+        if len(hist) > 1:
+            returns = hist["Close"].pct_change(fill_method=None).dropna()
+            vol = returns.std() * (252**0.5) * 100
+            vol_str = f"{vol:.2f}%"
+        m4.metric("波动率", vol_str)
+    except (KeyError, IndexError):
         pass
 
 
@@ -117,7 +159,12 @@ def financial_reports_sidebar_fragment(symbol: str) -> None:
                 val = info[key]
                 # 格式化数值
                 if isinstance(val, float):
-                    if label in ["ROE", "Profit Margin", "Op. Margin", "Div. Yield"]:
+                    if label in [
+                        "ROE",
+                        "Profit Margin",
+                        "Op. Margin",
+                        "Div. Yield",
+                    ]:
                         formatted_val = f"{val * 100:.2f}%"
                     elif label == "D/E Ratio":
                         formatted_val = f"{val:.2f}"
