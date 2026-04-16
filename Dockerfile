@@ -1,24 +1,41 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Build stage - install dependencies
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
 
 WORKDIR /app
 
-# 1. 利用 uv 的缓存机制，先只复制依赖文件
+# Copy dependency files first for better layer caching
 COPY pyproject.toml uv.lock ./
 
-# 2. 同步环境 (uv 会自动处理虚拟环境)
-RUN uv sync --frozen --no-cache
+# Install dependencies into a virtual environment
+RUN uv sync --frozen --no-dev
 
-# 3. 复制剩余代码
-COPY . .
+# Runtime stage
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS runtime
 
-# 4. 创建一个 .env 文件
-RUN touch .env
+# Python runtime settings
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONFAULTHANDLER=1
 
-# 暴露端口
+# Security: run as non-root user
+RUN useradd --create-home --shell /bin/bash appuser
+USER appuser
+WORKDIR /home/appuser/app
+
+# Copy virtual environment from builder
+COPY --from=builder --chown=appuser:appuser /app/.venv ./.venv
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Activate virtual environment
+ENV PATH="/home/appuser/app/.venv/bin:$PATH"
+
+# Health check for container monitoring
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8501')" || exit 1
+
 EXPOSE 8501
 
-# 使用 uv run 启动，确保在虚拟环境中运行
-CMD ["uv", "run", "streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run Streamlit directly (venv already activated via PATH)
+CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.headless=true"]
