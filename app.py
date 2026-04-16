@@ -1,5 +1,8 @@
 # import pytz
 import streamlit as st
+import pandas as pd
+
+pd.set_option("future.no_silent_downcasting", True)
 
 if __name__ == "__main__":
     equity = st.Page("ui/equity.py", title="Stock")
