@@ -1,7 +1,7 @@
 # OpenQuantApp Project Context
 
 ## Project Overview
-OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research and trading dashboard built with Python. It integrates high-performance time-series storage (ArcticDB), relational metadata storage (SQLModel/SQLite), and an interactive UI (Streamlit & Plotly). The system supports data synchronization from market providers (yfinance, Finnhub), technical analysis indicator computation, and real-time alerts via Telegram.
+OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research and trading dashboard built with Python. It integrates high-performance time-series storage (ArcticDB), relational metadata storage (SQLModel/SQLite), and an interactive UI (Streamlit & Plotly). The system supports multi-asset data synchronization (yfinance for equities, ccxt for cryptocurrencies), news sentiment analysis via TextBlob, and real-time alerts via Telegram.
 
 ## Key Technologies
 - **Language:** Python 3.12+
@@ -21,12 +21,23 @@ OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research
 - `database/`:
   - `models.py`: SQLModel definitions for `SymbolMeta`, `MarketNews`, and `SyncTaskLog`.
   - `manager.py`: Database operations for SQL metadata.
+  - `resource.py`: Resource management for database connections.
+  - `manage/`: Specialized managers for symbol and news metadata.
   - `connections/`: Custom Streamlit connection types for ArcticDB.
 - `engine/`:
   - `analytics.py`: Technical indicator calculation pipeline using `pandas_ta`.
   - `strategies.py`: Signal identification (e.g., FVG, MACD, breakout patterns).
   - `chart_factory.py`: Plotly figure construction for charts and signals.
-- `ui/`: Streamlit page implementations (Equity, Indices, ETF, Admin).
+- `ui/`:
+  - `common_layout.py`: Shared UI layout and styling.
+  - `equity.py`, `indices.py`, `etf.py`, `future.py`: Asset-specific analysis pages.
+  - `admin/`: Administrative tools (e.g., `asset_manager.py`).
+  - `components/`: Reusable UI components (sidebar, tabs, fragments).
+- `api/`:
+  - `fetch_news.py`: Finnhub news integration.
+  - `market_manager.py`: Market data retrieval logic.
+- `utils/`:
+  - `human_readable.py`: Formatting utilities for financial data.
 - `tools/`:
   - `cron.py`: Background tasks for data sync and alerting.
 - `db_manage.py`: CLI tool for managing the metadata database (init, add symbols, etc.).
@@ -83,3 +94,4 @@ OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research
 - Integration of `sqlite-vss` for semantic news search (vector embeddings).
 - Expanded technical indicator library in `analytics.py`.
 - More granular risk management features (drawdown alerts).
+r risk management features (drawdown alerts).
