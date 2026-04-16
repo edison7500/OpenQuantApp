@@ -94,4 +94,3 @@ OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research
 - Integration of `sqlite-vss` for semantic news search (vector embeddings).
 - Expanded technical indicator library in `analytics.py`.
 - More granular risk management features (drawdown alerts).
-r risk management features (drawdown alerts).

@@ -175,14 +175,3 @@ def send_alert(symbol, signal, message):
 ## 📝 许可证
 
 MIT License
- `plotly` - 交互式图表
-- `apscheduler` - 定时任务调度
-- `python-telegram-bot` - Telegram 通知
-
-## ⚠️ 免责声明
-
-本系统仅用于技术研究与量化分析工具展示，不构成任何投资建议。入市有风险，投资需谨慎。
-
-## 📝 许可证
-
-MIT License
