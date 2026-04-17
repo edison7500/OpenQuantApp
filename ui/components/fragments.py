@@ -1,7 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
-import requests
+from fredapi import Fred
 
 from api.fetch_news import fetch_and_analyze
 from utils.human_readable import format_human_readable, format_percentage
@@ -86,28 +86,10 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
 
 
 @st.cache_data(ttl=3600)  # 1 小时缓存
-def _fetch_fred_data(series_id: str) -> float | None:
-    """从 FRED API 获取宏观经济数据"""
-    try:
-        api_key = st.secrets["fred"]["api_key"]
-        url = "https://api.stlouisfed.org/fred/series/observations"
-        params = {
-            "series_id": series_id,
-            "api_key": api_key,
-            "file_type": "json",
-            "limit": 1,
-            "sort_order": "desc",
-        }
-        response = requests.get(url, params=params, timeout=5)
-        if response.status_code == 200:
-            data = response.json()
-            observations = data.get("observations", [])
-            if observations:
-                value = observations[0].get("value")
-                return float(value) if value else None
-    except Exception:
-        pass
-    return None
+def _get_fred_client() -> Fred:
+    """获取 FRED API 客户端"""
+    api_key = st.secrets["fred"]["api_key"]
+    return Fred(api_key=api_key)
 
 
 @st.fragment
@@ -139,39 +121,27 @@ def macro_data_grid_fragment() -> None:
         },
     }
 
-    # 获取所有数据
-    display_data = []
-    for label, config in metrics_map.items():
-        value = _fetch_fred_data(config["series_id"])
-        if value is not None:
-            # CPI 需要计算同比变化
-            if config["series_id"] == "CPIAUCSL":
-                # 获取前 13 个月数据计算 YoY
-                try:
-                    api_key = st.secrets["fred"]["api_key"]
-                    url = (
-                        f"https://api.stlouisfed.org/fred/series/observations"
-                    )
-                    params = {
-                        "series_id": config["series_id"],
-                        "api_key": api_key,
-                        "file_type": "json",
-                        "limit": 13,
-                        "sort_order": "desc",
-                    }
-                    response = requests.get(url, params=params, timeout=5)
-                    if response.status_code == 200:
-                        data = response.json()
-                        obs = data.get("observations", [])
-                        if len(obs) >= 13:
-                            current = float(obs[0]["value"])
-                            year_ago = float(obs[12]["value"])
-                            value = ((current - year_ago) / year_ago) * 100
-                except Exception:
-                    pass
-            display_data.append(
-                (label, value, config["unit"], config["description"])
-            )
+    try:
+        fred = _get_fred_client()
+        display_data = []
+        for label, config in metrics_map.items():
+            series_id = config["series_id"]
+            data = fred.get_series(series_id, limit=1)
+            if not data.empty:
+                value = data.iloc[-1]
+                # CPI 需要计算同比变化
+                if series_id == "CPIAUCSL":
+                    cpi_data = fred.get_series(series_id, limit=13)
+                    if len(cpi_data) >= 13:
+                        current = cpi_data.iloc[-1]
+                        year_ago = cpi_data.iloc[-13]
+                        value = ((current - year_ago) / year_ago) * 100
+                display_data.append(
+                    (label, float(value), config["unit"], config["description"])
+                )
+    except Exception as e:
+        st.error(f"获取宏观数据失败：{e}")
+        display_data = []
 
     if display_data:
         # 使用 2x2 网格布局
