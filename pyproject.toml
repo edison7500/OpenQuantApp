@@ -16,6 +16,7 @@ dependencies = [
     "pandas-ta>=0.4.71b0",
     "plotly>=6.5.2",
     "python-dotenv>=1.2.2",
+    "requests>=2.31.0",
     "rich>=14.3.3",
     "sqlalchemy>=2.0.48",
     "sqlmodel>=0.0.37",

@@ -35,7 +35,6 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
     selected_tab = st.segmented_control(
         "分析視圖",
         options=tabs_titles,
-        default=st.session_state[state_key],
         key=state_key,
     )
 

@@ -1,6 +1,7 @@
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import requests
 
 from api.fetch_news import fetch_and_analyze
 from utils.human_readable import format_human_readable, format_percentage
@@ -15,51 +16,6 @@ def control_panel_sidebar_fragment(title: str) -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    # # 侧边栏交互
-    # with st.sidebar:
-    #     st.header("参数设置")
-
-    #     portfolio = get_symbols()
-    #     if "symbol" not in st.session_state:
-    #         st.session_state.setdefault("symbol", portfolio[0])
-
-    #     symbol = st.selectbox(
-    #         "选择分析标的",
-    #         options=portfolio,
-    #         key="symbol",
-    #     )
-
-    #     # --- 新增：日期范围选择器 ---
-    #     now = datetime.datetime.now(tz=pytz.UTC)
-    #     default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
-
-    #     # date_input 允许传入一个 tuple 来选择区间
-    #     date_selection = st.date_input(
-    #         "选择时间范围",
-    #         value=(default_start, now),
-    #         max_value=now + datetime.timedelta(days=1),
-    #     )
-
-    #     timeframe = st.select_slider(
-    #         "TimeFrame",
-    #         options=[
-    #             "1m",
-    #             "1h",
-    #             "D",
-    #         ],
-    #         value="D",
-    #     )
-
-    #     rsi_length = st.slider("RSI 周期", min_value=5, max_value=30, value=14)
-
-    #     # auto_refresh = st.toggle("开启自动刷新", value=False)
-
-    #     # 添加一个强制刷新按钮来清除缓存
-    #     if st.button("🔄 强制刷新数据"):
-    #         update_database(symbol)
-    #         get_symbols.clear()
-    #         load_and_process_data_with_range.clear()
-    #         calculate_drawdown.clear()
 
 
 @st.fragment
@@ -78,9 +34,9 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
             # 截取最近一个月的数据 (约 22 个交易日)
             hist = full_hist.tail(30)
     except Exception as e:
-        st.error(f"ArcticDB 读取失败: {e}")
+        st.error(f"ArcticDB 读取失败：{e}")
 
-    # 如果 ArcticDB 没有数据，尝试用 yfinance 做最后的保底 (可选，但为了防止崩溃建议加上 try-except)
+    # 如果 ArcticDB 没有数据，尝试用 yfinance 做最后的保底
     if hist.empty:
         try:
             hist = ticker.history(period="1mo")
@@ -127,6 +83,112 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
         m4.metric("波动率", vol_str)
     except (KeyError, IndexError):
         pass
+
+
+@st.cache_data(ttl=3600)  # 1 小时缓存
+def _fetch_fred_data(series_id: str) -> float | None:
+    """从 FRED API 获取宏观经济数据"""
+    try:
+        api_key = st.secrets["fred"]["api_key"]
+        url = "https://api.stlouisfed.org/fred/series/observations"
+        params = {
+            "series_id": series_id,
+            "api_key": api_key,
+            "file_type": "json",
+            "limit": 1,
+            "sort_order": "desc",
+        }
+        response = requests.get(url, params=params, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            observations = data.get("observations", [])
+            if observations:
+                value = observations[0].get("value")
+                return float(value) if value else None
+    except Exception:
+        pass
+    return None
+
+
+@st.fragment
+def macro_data_grid_fragment() -> None:
+    """显示 FRED 宏观经济数据网格"""
+    st.subheader("🌍 宏观数据 (Macroeconomic Data)")
+
+    # FRED 系列 ID 映射
+    metrics_map = {
+        "联邦基金利率": {
+            "series_id": "FEDFUNDS",
+            "unit": "%",
+            "description": "有效联邦基金利率",
+        },
+        "通胀率 (CPI)": {
+            "series_id": "CPIAUCSL",
+            "unit": "% YoY",
+            "description": "消费者价格指数同比",
+        },
+        "美元指数": {
+            "series_id": "DTWEXBGS",
+            "unit": "",
+            "description": "美元兑主要货币篮子",
+        },
+        "10 年期美债": {
+            "series_id": "DGS10",
+            "unit": "%",
+            "description": "10 年期国债收益率",
+        },
+    }
+
+    # 获取所有数据
+    display_data = []
+    for label, config in metrics_map.items():
+        value = _fetch_fred_data(config["series_id"])
+        if value is not None:
+            # CPI 需要计算同比变化
+            if config["series_id"] == "CPIAUCSL":
+                # 获取前 13 个月数据计算 YoY
+                try:
+                    api_key = st.secrets["fred"]["api_key"]
+                    url = (
+                        f"https://api.stlouisfed.org/fred/series/observations"
+                    )
+                    params = {
+                        "series_id": config["series_id"],
+                        "api_key": api_key,
+                        "file_type": "json",
+                        "limit": 13,
+                        "sort_order": "desc",
+                    }
+                    response = requests.get(url, params=params, timeout=5)
+                    if response.status_code == 200:
+                        data = response.json()
+                        obs = data.get("observations", [])
+                        if len(obs) >= 13:
+                            current = float(obs[0]["value"])
+                            year_ago = float(obs[12]["value"])
+                            value = ((current - year_ago) / year_ago) * 100
+                except Exception:
+                    pass
+            display_data.append(
+                (label, value, config["unit"], config["description"])
+            )
+
+    if display_data:
+        # 使用 2x2 网格布局
+        row1 = st.columns(2)
+        row2 = st.columns(2)
+        rows = [row1, row2]
+
+        for i, (label, value, unit, desc) in enumerate(display_data[:4]):
+            with rows[i // 2][i % 2]:
+                with st.container(border=True):
+                    st.caption(f"{label}")
+                    st.metric(
+                        label=desc,
+                        value=f"{value:.2f}{unit}" if unit else f"{value:.2f}",
+                    )
+    else:
+        st.info("暂无宏观数据")
 
 
 @st.fragment
@@ -183,14 +245,18 @@ def financial_reports_sidebar_fragment(symbol: str) -> None:
             st.info("暂无详细财务指标")
 
     except Exception as e:
-        st.error(f"无法加载财务报表: {e}")
+        st.error(f"无法加载财务报表：{e}")
+
+    # 在财务报表下方显示宏观数据
+    st.divider()
+    macro_data_grid_fragment()
 
 
 @st.fragment
 def news_grid_fragment(symbol: str) -> None:
     """在主视图下方以 3 栏 Grid 形式展示新闻"""
     st.markdown("---")
-    st.subheader(f"📰 {symbol} 市场动态 (3栏视图)")
+    st.subheader(f"📰 {symbol} 市场动态 (3 栏视图)")
 
     # 局部刷新按钮
     if st.button("🔄 刷新新闻", key="refresh_grid_news"):
@@ -202,7 +268,7 @@ def news_grid_fragment(symbol: str) -> None:
     if not df.empty:
         # 情感分布小统计 (放在最上面一行)
         sentiment_counts = df["sentiment_label"].value_counts()
-        st.caption("过去7天情感分布趋势")
+        st.caption("过去 7 天情感分布趋势")
         st.bar_chart(sentiment_counts, horizontal=True, height=120)
 
         st.divider()
@@ -221,7 +287,7 @@ def news_grid_fragment(symbol: str) -> None:
                     }.get(row["sentiment_label"], "blue")
 
                     st.markdown(
-                        f":{label_color}[**{row['sentiment_label']}**] (得分: {row['sentiment_score']:.2f})"
+                        f":{label_color}[**{row['sentiment_label']}**] (得分：{row['sentiment_score']:.2f})"
                     )
                     st.markdown(
                         f"**{row['headline'][:80]}...**"
@@ -255,7 +321,7 @@ def news_sidebar_fragment(symbol: str) -> None:
     if not df.empty:
         # 情感分布小统计
         sentiment_counts = df["sentiment_label"].value_counts()
-        st.caption("过去7天情感分布")
+        st.caption("过去 7 天情感分布")
         st.bar_chart(sentiment_counts, horizontal=True, height=150)
 
         st.divider()
@@ -264,7 +330,7 @@ def news_sidebar_fragment(symbol: str) -> None:
         for _, row in df.head(12).iterrows():
             with st.container(border=True):
                 st.markdown(
-                    f"**{row['sentiment_label']}** (得分: {row['sentiment_score']:.2f})"
+                    f"**{row['sentiment_label']}** (得分：{row['sentiment_score']:.2f})"
                 )
                 st.markdown(f"**{row['headline']}**")
                 st.caption(
