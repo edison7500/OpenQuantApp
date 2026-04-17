@@ -85,11 +85,23 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
         pass
 
 
-@st.cache_data(ttl=3600)  # 1 小时缓存
-def _get_fred_client() -> Fred:
-    """获取 FRED API 客户端"""
-    api_key = st.secrets["fred"]["api_key"]
-    return Fred(api_key=api_key)
+def _fetch_fred_series_with_retry(
+    fred: Fred, series_id: str, limit: int = 1, max_retries: int = 3
+) -> pd.Series | None:
+    """从 FRED 获取数据，带重试机制"""
+    import time
+
+    for attempt in range(max_retries):
+        try:
+            data = fred.get_series(series_id, limit=limit)
+            if not data.empty:
+                return data
+            return None
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise
+            time.sleep(0.5 * (attempt + 1))  # 递增延迟重试
+    return None
 
 
 @st.fragment
@@ -122,26 +134,33 @@ def macro_data_grid_fragment() -> None:
     }
 
     try:
-        fred = _get_fred_client()
+        api_key = st.secrets["fred"]["api_key"]
+        fred = Fred(api_key=api_key)
+
         display_data = []
         for label, config in metrics_map.items():
             series_id = config["series_id"]
-            data = fred.get_series(series_id, limit=1)
-            if not data.empty:
+            data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
+            if data is not None:
                 value = data.iloc[-1]
                 # CPI 需要计算同比变化
                 if series_id == "CPIAUCSL":
-                    cpi_data = fred.get_series(series_id, limit=13)
-                    if len(cpi_data) >= 13:
+                    cpi_data = _fetch_fred_series_with_retry(
+                        fred, series_id, limit=13
+                    )
+                    if cpi_data is not None and len(cpi_data) >= 13:
                         current = cpi_data.iloc[-1]
                         year_ago = cpi_data.iloc[-13]
                         value = ((current - year_ago) / year_ago) * 100
                 display_data.append(
                     (label, float(value), config["unit"], config["description"])
                 )
+
+        if not display_data:
+            st.info("暂无宏观数据")
+
     except Exception as e:
         st.error(f"获取宏观数据失败：{e}")
-        display_data = []
 
     if display_data:
         # 使用 2x2 网格布局
