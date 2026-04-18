@@ -154,13 +154,6 @@ def main():
             next_run = scheduler.get_job(job_id).next_run_time
             st.info(f"下次同步时间：{next_run.strftime('%H:%M:%S')}")
 
-        # 日志文件链接
-        if LOG_FILE.exists():
-            with open(LOG_FILE, "r") as f:
-                logs = f.read()
-            with st.expander("📋 查看任务日志", expanded=False):
-                st.code(logs, language="text")
-
         if st.button("🔔 测试 Telegram 推送"):
             notifier = TelegramNotifier(
                 st.secrets["telegram"]["token"],
@@ -171,6 +164,17 @@ def main():
                 st.success("推送成功！请检查手机。")
             else:
                 st.error("推送失败，请检查 Token 或网络。")
+
+    # 主视觉区域：任务日志
+    st.divider()
+    st.subheader("📋 任务日志")
+
+    if LOG_FILE.exists():
+        with open(LOG_FILE, "r") as f:
+            logs = f.read()
+        st.code(logs, language="text")
+    else:
+        st.info("暂无日志记录")
 
 
 main()
