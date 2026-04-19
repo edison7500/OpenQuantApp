@@ -153,7 +153,12 @@ def macro_data_grid_fragment() -> None:
                         year_ago = cpi_data.iloc[-13]
                         value = ((current - year_ago) / year_ago) * 100
                 display_data.append(
-                    (label, float(value), config["unit"], config["description"])
+                    (
+                        label,
+                        float(value),
+                        config["unit"],
+                        config["description"],
+                    )
                 )
 
         if not display_data:

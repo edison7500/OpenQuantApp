@@ -23,18 +23,26 @@ class SymbolManager(object):
             SQLModel.metadata.create_all(self.engine)
 
     def get_active_symbols(
-        self, asset_type: str = "Equity"
+        self, asset_type: Optional[str] = "Equity"
     ) -> Optional[List[str]]:
-        """获取活跃的股票代码列表"""
+        """获取活跃的 symbol 列表
+
+        Args:
+            asset_type: 资产类型，None 时获取所有活跃 symbol
+
+        Returns:
+            活跃 symbol 列表，如果没有则返回 None
+        """
         with self.session as session:
-            statement = (
-                select(models.SymbolMeta.symbol)
-                .where(
-                    models.SymbolMeta.is_active,
-                    models.SymbolMeta.asset_type == asset_type,
-                )
-                .order_by(models.SymbolMeta.symbol)
+            statement = select(models.SymbolMeta.symbol).where(
+                models.SymbolMeta.is_active
             )
+            if asset_type is not None:
+                statement = statement.where(
+                    models.SymbolMeta.asset_type == asset_type
+                )
+            statement = statement.order_by(models.SymbolMeta.symbol)
+
             symbols = session.exec(statement).all()
 
             if not symbols:

@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 
 from database.connections.arcticdb_conn import ArcticDBConnection
 from database.resource import get_symbols
-from notifier.tg import TelegramNotifier
 from sync_engine import DataSyncEngine
 
 load_dotenv()
@@ -44,6 +43,9 @@ def get_scheduler():
     executors = {"default": ThreadPoolExecutor(2)}
     scheduler = BackgroundScheduler(executors=executors)
     scheduler.start()
+    # 将 scheduler 存入 session_state 供其他模块使用
+    st.session_state["scheduler"] = scheduler
+    st.session_state["log_dir"] = LOG_DIR
     return scheduler
 
 
@@ -53,7 +55,7 @@ def get_scheduler():
 def daily_sync_job():
     logger.info("开始执行每日自动同步任务")
     engine = DataSyncEngine()
-    symbols = get_symbols()
+    symbols = get_symbols(asset_type=None)
     logger.info(f"待同步标的数量：{len(symbols)}")
 
     success_count = 0
@@ -94,7 +96,9 @@ def daily_sync_and_scan_job():
 
             # 3. 触发逻辑判断
             if current_rsi < 30:
-                logger.info(f"触发 RSI 超卖信号：{sym} (RSI={current_rsi:.2f})")
+                logger.info(
+                    f"触发 RSI 超卖信号：{sym} (RSI={current_rsi:.2f})"
+                )
                 notifier = TelegramNotifier(
                     st.secrets["telegram"]["token"],
                     st.secrets["telegram"]["chat_id"],
@@ -135,7 +139,6 @@ def main():
             if st.button("开启自动同步 (每 5 分钟)"):
                 scheduler.add_job(
                     daily_sync_job,
-                    # daily_sync_and_scan_job,
                     "interval",
                     minutes=5,
                     id=job_id,
@@ -154,20 +157,23 @@ def main():
             next_run = scheduler.get_job(job_id).next_run_time
             st.info(f"下次同步时间：{next_run.strftime('%H:%M:%S')}")
 
-        if st.button("🔔 测试 Telegram 推送"):
-            notifier = TelegramNotifier(
-                st.secrets["telegram"]["token"],
-                st.secrets["telegram"]["chat_id"],
-            )
-            r = notifier.notify("✅ 这是一个来自量化 Dashboard 的测试信号")
-            if r:
-                st.success("推送成功！请检查手机。")
-            else:
-                st.error("推送失败，请检查 Token 或网络。")
+    # 主视觉区域：说明和日志
+    st.markdown("""
+    ### 功能说明
 
-    # 主视觉区域：任务日志
+    **自动化行情同步系统** 负责从 yfinance 抓取数据并同步到 ArcticDB。
+
+    #### 工作流程：
+    1. 从 yfinance 获取 OHLCV 数据
+    2. 存储到 ArcticDB 时序数据库
+    3. 支持 1m/1h/Daily 多时间尺度
+    4. 增量更新，避免重复抓取
+
+    > 💡 **提示**: Telegram 通知功能已拆分至独立页面，请运行 `streamlit run tools/telegram_bot.py` 访问。
+    """)
+
     st.divider()
-    st.subheader("📋 任务日志")
+    st.subheader("📋 同步日志")
 
     if LOG_FILE.exists():
         with open(LOG_FILE, "r") as f:

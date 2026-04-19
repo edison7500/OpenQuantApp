@@ -23,9 +23,16 @@ class DatabaseManager(object):
     # === Symbol 代理方法 (向后兼容) ===
 
     def get_active_symbols(
-        self, asset_type: str = "Equity"
+        self, asset_type: Optional[str] = "Equity"
     ) -> Optional[List[str]]:
-        """获取活跃的股票代码列表"""
+        """获取活跃的 symbol 列表
+
+        Args:
+            asset_type: 资产类型，None 时获取所有活跃 symbol
+
+        Returns:
+            活跃 symbol 列表，如果没有则返回 None
+        """
         return self.symbol.get_active_symbols(asset_type)
 
     def get_symbol_meta(self, symbol) -> Optional[models.SymbolMeta]:
