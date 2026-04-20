@@ -97,7 +97,7 @@ def _fetch_fred_series_with_retry(
             if not data.empty:
                 return data
             return None
-        except Exception as e:
+        except Exception:
             if attempt == max_retries - 1:
                 raise
             time.sleep(0.5 * (attempt + 1))  # 递增延迟重试
@@ -295,7 +295,7 @@ def news_grid_fragment(symbol: str) -> None:
                         "阅读原文",
                         row["url"],
                         icon="🔗",
-                        use_container_width=True,
+                        width="stretch",
                     )
     else:
         st.info("暂无新闻资讯")

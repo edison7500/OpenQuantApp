@@ -8,6 +8,7 @@ import streamlit as st
 from apscheduler.executors.pool import ThreadPoolExecutor
 from apscheduler.schedulers.background import BackgroundScheduler
 from dotenv import load_dotenv
+from notifier.tg import TelegramNotifier
 
 from database.connections.arcticdb_conn import ArcticDBConnection
 from database.resource import get_symbols
@@ -43,9 +44,6 @@ def get_scheduler():
     executors = {"default": ThreadPoolExecutor(2)}
     scheduler = BackgroundScheduler(executors=executors)
     scheduler.start()
-    # 将 scheduler 存入 session_state 供其他模块使用
-    st.session_state["scheduler"] = scheduler
-    st.session_state["log_dir"] = LOG_DIR
     return scheduler
 
 

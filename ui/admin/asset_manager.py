@@ -70,7 +70,7 @@ def main():
                             st.error(f"获取信息失败：{str(e)}")
 
         with col2:
-            if st.button("清空", use_container_width=True):
+            if st.button("清空", width="stretch"):
                 st.session_state.pending_asset = None
                 st.rerun()
 
@@ -91,7 +91,7 @@ def main():
                 }
             )
 
-            if st.button("确认添加", type="primary", use_container_width=True):
+            if st.button("确认添加", type="primary", width="stretch"):
                 try:
                     new_symbol = SymbolMeta(
                         symbol=asset["symbol"],
@@ -181,15 +181,41 @@ def main():
                 st.session_state.delete_selection = []
             if "update_selection" not in st.session_state:
                 st.session_state.update_selection = []
+            if "current_page" not in st.session_state:
+                st.session_state.current_page = 1
 
             # 添加删除列
             df_display = df.copy()
             df_display["删除"] = [False] * len(df_display)
             df_display["更新"] = [False] * len(df_display)
 
+            # 分页设置
+            rows_per_page = 20
+            total_pages = (len(df_display) - 1) // rows_per_page + 1
+
+            # 分页控件
+            if total_pages > 1:
+                page_col, spacer_col = st.columns([4, 1])
+                with page_col:
+                    new_page = st.slider(
+                        f"页码 (共 {total_pages} 页)",
+                        min_value=1,
+                        max_value=total_pages,
+                        value=st.session_state.current_page,
+                        key="page_slider",
+                    )
+                    if new_page != st.session_state.current_page:
+                        st.session_state.current_page = new_page
+                        st.rerun()
+
+            # 计算当前页数据
+            start_idx = (st.session_state.current_page - 1) * rows_per_page
+            end_idx = start_idx + rows_per_page
+            df_page = df_display.iloc[start_idx:end_idx].copy()
+
             # 显示带复选框的表格
             edited_df = st.data_editor(
-                df_display,
+                df_page,
                 use_container_width=True,
                 height=400,
                 column_config={
@@ -210,8 +236,37 @@ def main():
                     ),
                 },
                 disabled=[col for col in df.columns if col not in ["状态"]],
-                # disabled=[col for col in df.columns if col != "删除"],
                 key="asset_table",
+            )
+
+            # 更新全局选择状态
+            for _, row in edited_df.iterrows():
+                sym = row["代码"]
+                if (
+                    row["删除"]
+                    and sym not in st.session_state.delete_selection
+                ):
+                    st.session_state.delete_selection.append(sym)
+                elif (
+                    not row["删除"]
+                    and sym in st.session_state.delete_selection
+                ):
+                    st.session_state.delete_selection.remove(sym)
+                if (
+                    row["更新"]
+                    and sym not in st.session_state.update_selection
+                ):
+                    st.session_state.update_selection.append(sym)
+                elif (
+                    not row["更新"]
+                    and sym in st.session_state.update_selection
+                ):
+                    st.session_state.update_selection.remove(sym)
+
+            # 显示当前选择
+            st.write(
+                f"已选择 **{len(st.session_state.delete_selection)}** 个资产进行删除，"
+                f"**{len(st.session_state.update_selection)}** 个资产进行更新"
             )
 
             # 底部操作区
@@ -219,18 +274,12 @@ def main():
             col1, col2, col3 = st.columns([1, 1, 3])
 
             with col1:
-                selected_for_delete = edited_df[edited_df["删除"]][
-                    "代码"
-                ].tolist()
                 st.write(
-                    f"已选择 **{len(selected_for_delete)}** 个资产进行删除"
+                    f"已选择 **{len(st.session_state.delete_selection)}** 个资产进行删除"
                 )
             with col2:
-                selected_for_update = edited_df[edited_df["更新"]][
-                    "代码"
-                ].tolist()
                 st.write(
-                    f"已选择 **{len(selected_for_update)}** 个资产进行更新"
+                    f"已选择 **{len(st.session_state.update_selection)}** 个资产进行更新"
                 )
 
             with col3:
@@ -239,44 +288,51 @@ def main():
                     type="primary",
                     width="content",
                 ):
-                    # 1. 处理状态更新 (is_active)
+                    # 1. 处理状态更新 (is_active) - 需要遍历所有页面的数据
                     try:
-                        # 找出状态发生变化的行
-                        status_changes = edited_df[
-                            edited_df["状态"] != df_display["状态"]
-                        ]
-                        for _, row in status_changes.iterrows():
-                            sym = row["代码"]
-                            new_status = row["状态"]
-                            # 获取现有元数据并更新状态
-                            meta = db_manager.get_symbol_meta(sym)
-                            if meta:
-                                meta.is_active = new_status
-                                meta.updated_at = datetime.now()
-                                db_manager.update_symbol_meta(meta)
-                        if not status_changes.empty:
-                            st.toast(
-                                f"已更新 {len(status_changes)} 个资产的状态"
-                            )
+                        for idx in range(0, len(df_display), rows_per_page):
+                            page_df = df_display.iloc[
+                                idx : idx + rows_per_page
+                            ].copy()
+                            # 从 session_state 获取该页面的编辑状态
+                            for _, row in page_df.iterrows():
+                                sym = row["代码"]
+                                # 获取原始状态
+                                orig_row = df_display[
+                                    df_display["代码"] == sym
+                                ].iloc[0]
+                                if sym in st.session_state._status_cache:
+                                    new_status = (
+                                        st.session_state._status_cache[sym]
+                                    )
+                                    if new_status != orig_row["状态"]:
+                                        meta = db_manager.get_symbol_meta(sym)
+                                        if meta:
+                                            meta.is_active = new_status
+                                            meta.updated_at = datetime.now()
+                                            db_manager.update_symbol_meta(meta)
+                                            st.toast(f"已更新 {sym} 的状态")
                     except Exception as e:
                         st.error(f"状态更新失败：{str(e)}")
 
                     # 2. 处理删除
-                    if selected_for_delete:
+                    if st.session_state.delete_selection:
                         try:
-                            for sym in selected_for_delete:
+                            for sym in st.session_state.delete_selection:
                                 db_manager.delete_symbol(sym)
                             st.success(
-                                f"已删除 {len(selected_for_delete)} 个资产"
+                                f"已删除 {len(st.session_state.delete_selection)} 个资产"
                             )
+                            st.session_state.delete_selection = []
+                            st.session_state.update_selection = []
                             st.rerun()
                         except Exception as e:
                             st.error(f"删除失败：{str(e)}")
 
                     # 3. 处理元数据更新
-                    elif selected_for_update:
+                    if st.session_state.update_selection:
                         try:
-                            for sym in selected_for_update:
+                            for sym in st.session_state.update_selection:
                                 # 获取最新信息并更新
                                 ticker = yf.Ticker(sym)
                                 info = ticker.info
@@ -297,20 +353,15 @@ def main():
                                     )
                                     db_manager.update_symbol_meta(updated_meta)
                             st.success(
-                                f"已更新 {len(selected_for_update)} 个资产"
+                                f"已更新 {len(st.session_state.update_selection)} 个资产"
                             )
+                            st.session_state.update_selection = []
                             st.rerun()
                         except Exception as e:
                             st.error(f"更新失败：{str(e)}")
 
                     # 如果没有删除或更新，但有状态变更，也需要 rerun
-                    if not selected_for_delete and not selected_for_update:
-                        st.rerun()
-                    else:
-                        st.rerun()
-
-                    if not selected_for_delete and not selected_for_update:
-                        st.info("没有选择要更新或删除的资产")
+                    st.rerun()
         else:
             st.info("暂无匹配的资产数据")
     else:
