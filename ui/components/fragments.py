@@ -4,6 +4,7 @@ import yfinance as yf
 
 from api.fetch_news import fetch_and_analyze
 from database.connections.arcticdb_conn import ArcticDBConnection
+from engine.llm_manager import llm_manager
 from engine.macro_manager import get_macro_metrics
 from utils.human_readable import (
     format_human_readable,
@@ -91,59 +92,143 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
 
 @st.fragment
 def macro_data_marquee_fragment() -> None:
-    """显示 FRED 宏观经济数据跑马灯 - 用于主视觉区顶部"""
+    """显示 FRED 宏观经济数据跑马灯 - 优化版"""
+
+    # 1. 获取数据
     display_data = get_macro_metrics()
 
-    if display_data:
-        # 构建跑马灯内容
-        items_html = ""
-        for label, value, unit, icon in display_data:
-            val_str = f"{value:.2f}{unit}" if unit else f"{value:.2f}"
-            items_html += f'<span class="macro-item">{icon} <b>{label}</b>: {val_str}</span>'
+    if not display_data:
+        # 如果没有数据，可以选择静默退出或显示占位
+        return
 
-        # 为了实现无缝循环，内容需要重复
-        marquee_content = items_html * 3
+    # 2. 构造 HTML 列表 (使用列表推导式性能更佳)
+    items_list = [
+        f'<div class="macro-item">{icon} <b>{label}</b>: {value:.2f}{unit or ""}</div>'
+        for label, value, unit, icon in display_data
+    ]
 
-        st.markdown(
-            f"""
-            <style>
-            .macro-marquee-container {{
-                width: 100%;
-                overflow: hidden;
-                background: rgba(0, 0, 0, 0.05);
-                border-radius: 10px;
-                padding: 10px 0;
-                margin-bottom: 20px;
-                border: 1px solid rgba(0, 0, 0, 0.1);
-                display: flex;
-            }}
-            .macro-marquee-track {{
-                display: flex;
-                white-space: nowrap;
-                animation: marquee 30s linear infinite;
-            }}
-            .macro-item {{
-                display: inline-block;
-                padding: 0 30px;
-                font-size: 14px;
-                color: #31333F;
-            }}
-            @keyframes marquee {{
-                0% {{ transform: translateX(0); }}
-                100% {{ transform: translateX(-33.33%); }}
-            }}
-            </style>
-            <div class="macro-marquee-container">
-                <div class="macro-marquee-track">
-                    {marquee_content}
-                </div>
+    # 合并内容
+    single_set_html = "".join(items_list)
+    # 为了保证长短不一的数据都能实现平滑循环，重复2次配合 CSS transform
+    marquee_content = single_set_html * 2
+
+    # 3. 渲染 Markdown
+    st.markdown(
+        f"""
+        <style>
+        /* 容器样式 */
+        .macro-marquee-container {{
+            width: 100%;
+            overflow: hidden;
+            background: var(--secondary-background-color, rgba(0, 0, 0, 0.05));
+            border-radius: 8px;
+            padding: 12px 0;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+            display: flex;
+            position: relative;
+        }}
+
+        /* 轨道样式 */
+        .macro-marquee-track {{
+            display: flex;
+            white-space: nowrap;
+            width: max-content;
+            animation: marquee 40s linear infinite; /* 增加到40s，阅读更舒适 */
+        }}
+
+        /* 悬停暂停动画 */
+        .macro-marquee-container:hover .macro-marquee-track {{
+            animation-play-state: paused;
+        }}
+
+        /* 单个数据项样式 */
+        .macro-item {{
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            font-family: sans-serif;
+        }}
+
+        .macro-item b {{
+            margin-left: 4px;
+            margin-right: 2px;
+        }}
+
+        /* 关键帧：平滑循环的关键是平移 -50% */
+        @keyframes marquee {{
+            0% {{ transform: translateX(0); }}
+            100% {{ transform: translateX(-50%); }}
+        }}
+        </style>
+
+        <div class="macro-marquee-container">
+            <div class="macro-marquee-track">
+                {marquee_content}
             </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
-@st.cache_data(ttl=3600)
+# @st.fragment
+# def macro_data_marquee_fragment() -> None:
+#     """显示 FRED 宏观经济数据跑马灯 - 用于主视觉区顶部"""
+#     display_data = get_macro_metrics()
+
+#     if display_data:
+#         # 构建跑马灯内容
+#         items_html = ""
+#         for label, value, unit, icon in display_data:
+#             val_str = f"{value:.2f}{unit}" if unit else f"{value:.2f}"
+#             items_html += f'<span class="macro-item">{icon} <b>{label}</b>: {val_str}</span>'
+
+#         # 为了实现无缝循环，内容需要重复
+#         marquee_content = items_html * 3
+
+#         st.markdown(
+#             f"""
+#             <style>
+#             .macro-marquee-container {{
+#                 width: 100%;
+#                 overflow: hidden;
+#                 background: rgba(0, 0, 0, 0.05);
+#                 border-radius: 10px;
+#                 padding: 10px 0;
+#                 margin-bottom: 20px;
+#                 border: 1px solid rgba(0, 0, 0, 0.1);
+#                 display: flex;
+#             }}
+#             .macro-marquee-track {{
+#                 display: flex;
+#                 white-space: nowrap;
+#                 animation: marquee 30s linear infinite;
+#             }}
+#             .macro-item {{
+#                 display: inline-block;
+#                 padding: 0 30px;
+#                 font-size: 14px;
+#                 color: #31333F;
+#             }}
+#             @keyframes marquee {{
+#                 0% {{ transform: translateX(0); }}
+#                 100% {{ transform: translateX(-33.33%); }}
+#             }}
+#             </style>
+#             <div class="macro-marquee-container">
+#                 <div class="macro-marquee-track">
+#                     {marquee_content}
+#                 </div>
+#             </div>
+#             """,
+#             unsafe_allow_html=True,
+#         )
+
+
+# @st.cache_data(ttl=3600)
 def get_ticker_info(_symbol: str) -> dict:
     """Fetch and cache ticker info from yfinance."""
     ticker = yf.Ticker(_symbol)
@@ -292,5 +377,48 @@ def news_sidebar_fragment(symbol: str) -> None:
                     f"{row['source']} | {row['datetime'].strftime('%Y-%m-%d')}"
                 )
                 st.link_button("查看全文", row["url"], icon="🔗")
+
+
+@st.fragment
+def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
+    """在右侧边栏显示 AI 智能分析报告"""
+    st.divider()
+    st.subheader("🤖 AI 智能推理")
+
+    if st.button("🚀 生成量化分析报告", key=f"ai_analyze_{symbol}"):
+        with st.spinner("AI 正在综合财务、新闻及宏观数据推理中..."):
+            try:
+                # 1. 准备技术指标数据
+                tech_data = hist if not hist.empty else None
+
+                # 2. 准备财务数据 (使用缓存函数)
+                info = get_ticker_info(symbol)
+                financial_data = {
+                    "ROE": info.get("returnOnEquity"),
+                    "D/E Ratio": info.get("debtToEquity"),
+                    "Profit Margin": info.get("profitMargins"),
+                    "Op. Margin": info.get("operatingMargins"),
+                    "Div. Yield": info.get("dividendYield"),
+                    "Trailing EPS": info.get("trailingEps"),
+                    "Forward EPS": info.get("forwardEps"),
+                }
+
+                # 3. 准备最新新闻摘要
+                news_df = fetch_and_analyze(symbol)
+
+                # 4. 准备宏观数据
+                macro_metrics = get_macro_metrics()
+
+                # 调用 LLM 管理器进行分析
+                analysis_result = llm_manager.analyze_symbol(
+                    symbol=symbol,
+                    technical_data=tech_data,
+                    financial_data=financial_data,
+                    news_data=news_df,
+                    macro_data=macro_metrics,
+                )
+                st.markdown(f"**分析结论：**\n\n{analysis_result}")
+            except Exception as e:
+                st.error(f"AI 分析失败：{e}")
     else:
-        st.info("暫無新聞")
+        st.info("点击按钮生成基于多维数据的 AI 推理结论")
