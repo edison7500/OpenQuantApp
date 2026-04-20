@@ -20,16 +20,39 @@ class ChartFactory:
         )
 
     @staticmethod
-    def add_candlestick(fig, df, row=1):
-        """核心组件：绘制 K 线"""
+    def add_candlestick(fig, df, row=1, use_ha=False):
+        """核心组件：绘制 K 线 (支持标准/Heikin-Ashi)"""
+        if use_ha:
+            # Use HA columns if available, otherwise fallback to standard
+            open_col, high_col, low_col, close_col = (
+                "HA_Open",
+                "HA_High",
+                "HA_Low",
+                "HA_Close",
+            )
+            if "HA_Open" not in df.columns:
+                # This should be handled by the caller, but for safety:
+                return ChartFactory.add_candlestick(
+                    fig, df, row=row, use_ha=False
+                )
+            name = "Heikin-Ashi K线"
+        else:
+            open_col, high_col, low_col, close_col = (
+                "Open",
+                "High",
+                "Low",
+                "Close",
+            )
+            name = "K线"
+
         fig.add_trace(
             go.Candlestick(
                 x=df.index,
-                open=df["Open"],
-                high=df["High"],
-                low=df["Low"],
-                close=df["Close"],
-                name="K线",
+                open=df[open_col],
+                high=df[high_col],
+                low=df[low_col],
+                close=df[close_col],
+                name=name,
             ),
             row=row,
             col=1,
@@ -173,15 +196,10 @@ class ChartFactory:
         fig.add_hline(
             y=1.0, line_dash="dash", line_color="gray", row=row, col=col
         )
-        fig.add_hline(
-            y=2.0, line_dash="dot", line_color="red", row=row, col=col
-        )
-
         fig.update_layout(
             title=f"{symbol} - ROVL 视图",
             template="plotly_white",
             xaxis_rangeslider_visible=False,
-            height=800,
         )
 
     @staticmethod
@@ -247,12 +265,49 @@ class ChartFactory:
         )
 
     @staticmethod
-    def build_view(df: pd.DataFrame, symbol: str, view_type: str = "MACD"):
+    def add_bbands_volatility(fig, df, row=2):
+        """组件：绘制 Bollinger Band Width (波动率深度)"""
+        bbb_col = [c for c in df.columns if c.startswith("BBB_")][0]
+
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df[bbb_col],
+                name="BB Width",
+                line=dict(color="#00D2FF", width=1.5),
+            ),
+            row=row,
+            col=1,
+        )
+
+        # 添加基准线
+        fig.add_hline(y=0, line_dash="dot", line_color="gray", row=row, col=1)
+
+    @staticmethod
+    def build_view(
+        df: pd.DataFrame,
+        symbol: str,
+        view_type: str = "MACD",
+        height: int = 600,
+        use_ha: bool = False,
+        show_kdj: bool = False,
+    ):
         """
         工厂入口：根据类型组装图表
         """
-        fig = ChartFactory._create_base()
-        ChartFactory.add_candlestick(fig, df)
+        # 1. 动态确定布局
+        if view_type == "RSI" and show_kdj:
+            rows = 3
+            heights = [0.6, 0.2, 0.2]
+        elif view_type in ["MACD", "RSI", "CCI", "ROVL", "DrawDown", "BBands"]:
+            rows = 2
+            heights = [0.7, 0.3]
+        else:
+            rows = 1
+            heights = [1.0]
+
+        fig = ChartFactory._create_base(rows=rows, heights=heights)
+        ChartFactory.add_candlestick(fig, df, use_ha=use_ha)
         ChartFactory.add_signal_markers(fig, df)
 
         if view_type == "MACD":
@@ -268,25 +323,73 @@ class ChartFactory:
             )
 
         elif view_type == "RSI":
+            # Row 2: RSI
             rsi_col = [c for c in df.columns if "RSI" in c][0]
             fig.add_trace(
-                go.Scatter(x=df.index, y=df[rsi_col], name="RSI"), row=2, col=1
-            )
-            # 添加 70/30 警戒线
-            fig.add_hline(
-                y=70,
-                line_dash="dash",
-                line_color="red",
+                go.Scatter(
+                    x=df.index,
+                    y=df[rsi_col],
+                    name="RSI",
+                    line=dict(color="#FFD700", width=2),
+                ),
                 row=2,
-                col=1,  # type: ignore
+                col=1,
+            )
+
+            # 添加 RSI 警戒线
+            fig.add_hline(
+                y=70, line_dash="dash", line_color="red", row=2, col=1
             )
             fig.add_hline(
-                y=30,
-                line_dash="dash",
-                line_color="green",
-                row=2,
-                col=1,  # type: ignore
+                y=30, line_dash="dash", line_color="green", row=2, col=1
             )
+
+            # Row 3: KDJ (如果开启)
+            if show_kdj:
+                # J线: 亮色、加粗
+                fig.add_trace(
+                    go.Scatter(
+                        x=df.index,
+                        y=df["J"],
+                        name="J",
+                        line=dict(color="#FFFFFF", width=2),
+                    ),
+                    row=3,
+                    col=1,
+                )
+                # K线: 暗色、细线/虚线
+                fig.add_trace(
+                    go.Scatter(
+                        x=df.index,
+                        y=df["K"],
+                        name="K",
+                        line=dict(
+                            color="rgba(0, 255, 127, 0.5)", width=1, dash="dot"
+                        ),
+                    ),
+                    row=3,
+                    col=1,
+                )
+                # D线: 暗色、细线/虚线
+                fig.add_trace(
+                    go.Scatter(
+                        x=df.index,
+                        y=df["D"],
+                        name="D",
+                        line=dict(
+                            color="rgba(255, 69, 0, 0.5)", width=1, dash="dash"
+                        ),
+                    ),
+                    row=3,
+                    col=1,
+                )
+                # KDJ 警戒线
+                fig.add_hline(
+                    y=80, line_dash="dot", line_color="gray", row=3, col=1
+                )
+                fig.add_hline(
+                    y=20, line_dash="dot", line_color="gray", row=3, col=1
+                )
 
         elif view_type == "CCI":
             # 调用新封装的 CCI 方法
@@ -334,10 +437,13 @@ class ChartFactory:
                 )
             )  # 添加通道填充色
 
+            # 新增：绘制波动率深度 (BB Width)
+            ChartFactory.add_bbands_volatility(fig, df, row=2)
+
         fig.update_layout(
             title=f"{symbol} - {view_type} 分析",
             xaxis_rangeslider_visible=False,
-            height=800,
+            height=height,
             template="plotly_dark",
         )
         return fig
@@ -348,12 +454,14 @@ class ChartFactory:
         symbol: str,
         view_type: str = "MACD",
         include_osc=True,
+        height: int = 600,
+        use_ha: bool = False,
     ):
         rows = 3 if include_osc else 1
         heights = [0.6, 0.2, 0.2] if include_osc else [1.0]
 
         fig = ChartFactory._create_base(rows=rows, heights=heights)
-        ChartFactory.add_candlestick(fig, df)
+        ChartFactory.add_candlestick(fig, df, use_ha=use_ha)
 
         # 繪製三條均線
         # SMA: 白色實線
@@ -416,7 +524,7 @@ class ChartFactory:
         fig.update_layout(
             title=f"{symbol} - {view_type} 分析",
             xaxis_rangeslider_visible=False,
-            height=800,
+            height=height,
             template="plotly_dark",
         )
 

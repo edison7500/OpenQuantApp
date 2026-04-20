@@ -5,11 +5,20 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - .:/app
-      - .streamlit:/app/.streamlit
-      - ./stock_db:/stock_db
+      # Mount source code for development (optional, can remove for production)
+      - .:/home/appuser/app
+      # Streamlit configuration
+      - .streamlit:/home/appuser/app/.streamlit
+      # Persistent data storage
+      - ./stock_db:/home/appuser/app/stock_db
+      - ./arctic_db:/home/appuser/app/arctic_db
     environment:
-      - UV_LINK_MODE=copy
-      - DB_PATH=lmdb:///stock_db
+      - DB_PATH=lmdb:///home/appuser/app/stock_db
       - LIBRARY_NAME=financial_data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: always

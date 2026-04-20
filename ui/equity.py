@@ -10,6 +10,7 @@ from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
     news_grid_fragment,
     symbolmeta_sidebar_fragment,
+    financial_reports_sidebar_fragment,
 )
 from ui.components.sidebar import render_common_sidebar
 
@@ -136,6 +137,7 @@ def main():
 
         with st.spinner(f"正在加载 {symbol} 的数据..."):
             symbolmeta_sidebar_fragment(symbol)
+            financial_reports_sidebar_fragment(symbol)
 
             # st.caption("最后更新: 2026-03-24 10:00")
 

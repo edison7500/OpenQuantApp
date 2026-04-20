@@ -1,3 +1,5 @@
+from typing import Optional
+
 import streamlit as st
 
 from database.connections.arcticdb_conn import ArcticDBConnection
@@ -22,7 +24,15 @@ def get_sql_connection():
 
 
 @st.cache_data(ttl=3600)
-def get_symbols(asset_type: str = "Equity") -> list | None:
+def get_symbols(asset_type: Optional[str] = "Equity") -> list | None:
+    """获取活跃的 symbol 列表
+
+    Args:
+        asset_type: 资产类型，None 时获取所有活跃 symbol
+
+    Returns:
+        活跃 symbol 列表
+    """
     symbols = DatabaseManager(conn=get_sql_connection()).get_active_symbols(
         asset_type
     )

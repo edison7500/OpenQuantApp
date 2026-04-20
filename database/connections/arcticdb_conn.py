@@ -38,6 +38,8 @@ class ArcticDBConnection(BaseConnection[Arctic]):
             "1m": f"{self.library_name}.min1",
             "1h": f"{self.library_name}.min60",
             "D": f"{self.library_name}",
+            "W": f"{self.library_name}.week",
+            "M": f"{self.library_name}.month",
         }
         return self._instance.get_library(
             libraries[timeframe], create_if_missing

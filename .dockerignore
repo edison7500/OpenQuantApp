@@ -4,3 +4,49 @@
 docker-compose.yml
 Dockerfile
 Jenkinsfile
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+*.egg-info/
+.eggs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Type checking
+.mypy_cache/
+.pytype/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Data files (exclude from build, mount as volumes)
+*.db
+*.db-shm
+*.db-wal
+stock_db/
+arctic_db/
+
+# Streamlit
+.streamlit/secrets.toml

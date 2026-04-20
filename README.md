@@ -18,18 +18,32 @@ quant-app/
 ├── app.py              # Main Streamlit entry point (navigation)
 ├── sync_engine.py      # Data synchronization engine (yfinance -> ArcticDB)
 ├── config.py           # Financial formatting configuration
-├── database/
+├── db_manage.py        # CLI tool for metadata database management
+├── database/           # Database layer
 │   ├── models.py       # SQLModel definitions (SymbolMeta, MarketNews, SyncTaskLog)
 │   ├── manager.py      # DatabaseManager for SQL operations
+│   ├── resource.py     # Resource management for database connections
+│   ├── manage/         # Specialized database managers (News, Symbol)
 │   └── connections/    # Custom Streamlit connection types (ArcticDB)
-├── engine/
+├── engine/             # Analysis engine
 │   ├── analytics.py    # AnalyticsEngine: technical indicators pipeline (pandas_ta)
 │   ├── strategies.py   # Signal identification (FVG, MACD, breakouts)
-│   └── chart_factory.py # Plotly chart builder (candlestick, indicators, signals)
-├── ui/                 # Streamlit pages (equity, indices, etf)
-├── tools/              # Cron/scheduler tool (APScheduler + Telegram alerts)
-├── notifier/           # Telegram bot integration
-└── api/                # Market data fetching (Finnhub, news)
+│   └── chart_factory.py # Plotly chart builder
+├── ui/                 # Streamlit UI layer
+│   ├── common_layout.py # Shared UI layout and styling
+│   ├── equity.py       # Equity analysis page
+│   ├── indices.py      # Indices analysis page
+│   ├── etf.py          # ETF analysis page
+│   ├── future.py       # Futures analysis page
+│   ├── admin/          # Admin tools (Asset Manager)
+│   └── components/     # Reusable UI components (Sidebar, Tabs, Fragments)
+├── api/                # Market data APIs (Finnhub, News)
+│   ├── fetch_news.py   # Finnhub news integration
+│   └── market_manager.py # Market data retrieval logic
+├── utils/              # Utility functions
+│   └── human_readable.py # Formatting utilities for financial data
+├── tools/              # Automation tools (Cron/Scheduler)
+└── notifier/           # Telegram bot integration
 ```
 
 ## 📦 快速开始
@@ -145,9 +159,11 @@ def send_alert(symbol, signal, message):
 
 主要依赖：
 
-- `arctic` - 时序数据库
+- `arcticdb` - 高性能时序数据库
+- `ccxt` - 加密货币交易接口库
 - `streamlit` - Web 界面框架
 - `pandas_ta` - 技术分析指标
+- `textblob` - NLP 情感分析
 - `plotly` - 交互式图表
 - `apscheduler` - 定时任务调度
 - `python-telegram-bot` - Telegram 通知

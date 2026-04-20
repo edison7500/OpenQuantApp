@@ -5,7 +5,35 @@ import streamlit as st
 from .strategies import identify_fvg_vectorized, identify_trading_signals
 
 
+def calculate_heikin_ashi(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    计算 Heikin-Ashi K线
+    """
+    df_ha = df.copy()
+
+    # Close = (Open + High + Low + Close) / 4
+    df_ha["HA_Close"] = (df["Open"] + df["High"] + df["Low"] + df["Close"]) / 4
+
+    # Open = (Previous HA_Open + Previous HA_Close) / 2
+    # Since it's recursive, we use a loop or a specialized approach.
+    # For efficiency in pandas, we can use a loop for the Open price.
+    ha_open = [df["Open"].iloc[0]]
+    for i in range(1, len(df)):
+        ha_open.append((ha_open[i - 1] + df_ha["HA_Close"].iloc[i - 1]) / 2)
+    df_ha["HA_Open"] = ha_open
+
+    # High = max(High, HA_Open, HA_Close)
+    df_ha["HA_High"] = df_ha[["High", "HA_Open", "HA_Close"]].max(axis=1)
+
+    # Low = min(Low, HA_Open, HA_Close)
+    df_ha["HA_Low"] = df_ha[["Low", "HA_Open", "HA_Close"]].min(axis=1)
+
+    return df_ha
+
+
 # --- 1. 基础指标原子函数 (Atomic Functions) ---
+
+
 def add_technical_indicators(
     df: pd.DataFrame, rsi_len=14, bb_len=20, sma_len=20, ema_len=50, wma_len=20
 ) -> pd.DataFrame:
@@ -19,10 +47,22 @@ def add_technical_indicators(
     df.ta.wma(length=wma_len, append=True)
     df.ta.bbands(length=bb_len, std=2, append=True)
 
-    # 2. 動量指標 (不同量綱，用於副圖)
+    # 2. 波動率 & 動量指標 (不同量綱，用於副圖)
+    # pandas_ta.bbands 會生成 BBL, BBM, BBU, BBB, BBP
     df.ta.rsi(length=rsi_len, append=True)
     df.ta.cci(length=rsi_len, append=True)
     df.ta.macd(append=True)
+
+    # KDJ Calculation
+    k_period = 9
+    low_min = df["Low"].rolling(window=k_period).min()
+    high_max = df["High"].rolling(window=k_period).max()
+    rsv = (df["Close"] - low_min) / (high_max - low_min) * 100
+
+    df["K"] = rsv.ewm(com=2).mean()
+    df["D"] = df["K"].ewm(com=2).mean()
+    df["J"] = 3 * df["K"] - 2 * df["D"]
+
     return df
 
 

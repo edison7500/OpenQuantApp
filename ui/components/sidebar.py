@@ -18,11 +18,11 @@ def render_common_sidebar(asset_type="equity") -> dict:
         # 1. 獲取標的列表 (可根據 asset_type 過濾)
         # 注意: get_symbols 默認是 "Equity"，所以需要傳入對應的 asset_type
         # 這裡做一個簡單的轉換，確保首字母大寫以符合 database/resource.py 的預期
-        if asset_type.lower() == "futures":
-            # 期貨頁面通常也顯示期權
-            portfolio_f = get_symbols(asset_type="Futures") or []
-            portfolio_o = get_symbols(asset_type="Option") or []
-            portfolio = portfolio_f + portfolio_o
+        if asset_type.lower() == "etf":
+            portfolio = get_symbols(asset_type="ETF")
+            #     portfolio_f = get_symbols(asset_type="Futures") or []
+            #     portfolio_o = get_symbols(asset_type="Option") or []
+            #     portfolio = portfolio_f + portfolio_o
         else:
             db_asset_type = asset_type.capitalize()
             portfolio = get_symbols(asset_type=db_asset_type)
@@ -46,10 +46,19 @@ def render_common_sidebar(asset_type="equity") -> dict:
         )
 
         # 3. 技術參數
-        timeframe = st.select_slider(
-            "TimeFrame", options=["1m", "1h", "D"], value="D"
+        tf_display = ["日线", "周线", "月线"]
+        tf_keys = ["D", "W", "M"]
+        tf_selection = st.select_slider(
+            "TimeFrame", options=tf_display, value="日线"
         )
+        timeframe = tf_keys[tf_display.index(tf_selection)]
+
         rsi_length = st.slider("RSI 週期", min_value=5, max_value=30, value=14)
+
+        # --- 圖表視覺化選項 ---
+        st.markdown("---")
+        st.subheader("視覺化設置")
+        use_ha = st.checkbox("🕯️ 使用 Heikin-Ashi K线", value=False)
 
         # 4. 數據維護按鈕
         if st.button("🔄 強制刷新數據"):
@@ -65,4 +74,5 @@ def render_common_sidebar(asset_type="equity") -> dict:
             "date_range": date_selection,
             "timeframe": timeframe,
             "rsi_length": rsi_length,
+            "use_ha": use_ha,
         }
