@@ -6,6 +6,9 @@ from database.resource import get_arctic_library, get_symbol_meta
 from engine import (
     load_and_process_full_pipeline,
 )  # load_and_process_data_with_range,; process_data_with_rvol,; calculate_drawdown,
+from engine.llm_manager import llm_manager
+from engine.macro_manager import get_macro_metrics
+from api.fetch_news import fetch_and_analyze
 from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
     news_grid_fragment,
@@ -143,7 +146,52 @@ def main():
             symbolmeta_sidebar_fragment(symbol)
             financial_reports_sidebar_fragment(symbol)
 
-            # st.caption("最后更新: 2026-03-24 10:00")
+        st.divider()
+        st.subheader("🤖 AI 智能推理")
+        
+        if st.button("🚀 生成量化分析报告", key=f"ai_analyze_{symbol}"):
+            with st.spinner("AI 正在综合财务、新闻及宏观数据推理中..."):
+                try:
+                    # 1. 准备技术指标数据 (从 main 作用域的 hist 获取)
+                    tech_data = None
+                    if 'hist' in locals() and not hist.empty:
+                        tech_data = hist
+
+                    # 2. 准备财务数据 (模拟从 financial_reports_sidebar_fragment 提取)
+                    # 实际上应该在 fragments 中提供一个获取数据的方法，
+                    # 这里我们直接调用 yfinance 获取关键指标
+                    import yfinance as yf
+                    ticker = yf.Ticker(symbol)
+                    info = ticker.info
+                    financial_data = {
+                        "ROE": info.get("returnOnEquity"),
+                        "D/E Ratio": info.get("debtToEquity"),
+                        "Profit Margin": info.get("profitMargins"),
+                        "Op. Margin": info.get("operatingMargins"),
+                        "Div. Yield": info.get("dividendYield"),
+                        "Trailing EPS": info.get("trailingEps"),
+                        "Forward EPS": info.get("forwardEps"),
+                    }
+
+                    # 3. 准备最新新闻摘要
+                    news_df = fetch_and_analyze(symbol)
+
+                    # 4. 准备宏观数据
+                    macro_metrics = get_macro_metrics()
+
+                    # 调用 LLM 管理器进行分析
+                    analysis_result = llm_manager.analyze_symbol(
+                        symbol=symbol,
+                        technical_data=tech_data,
+                        financial_data=financial_data,
+                        news_data=news_df,
+                        macro_data=macro_metrics
+                    )
+                    st.markdown(f"**分析结论：**\n\n{analysis_result}")
+                except Exception as e:
+                    st.error(f"AI 分析失败：{e}")
+        else:
+            st.info("点击按钮生成基于多维数据的 AI 推理结论")
 
 
 if __name__ == "__main__":
