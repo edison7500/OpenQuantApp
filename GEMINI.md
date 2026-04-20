@@ -28,8 +28,8 @@ OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research
   - `analytics.py`: Technical indicator calculation pipeline using `pandas_ta`.
   - `strategies.py`: Signal identification (e.g., FVG, MACD, breakout patterns).
   - `chart_factory.py`: Plotly figure construction for charts and signals.
+  - `llm_manager.py`: LLM integration for analysis and insights.
 - `ui/`:
-  - `common_layout.py`: Shared UI layout and styling.
   - `equity.py`, `indices.py`, `etf.py`, `future.py`: Asset-specific analysis pages.
   - `admin/`: Administrative tools (e.g., `asset_manager.py`).
   - `components/`: Reusable UI components (sidebar, tabs, fragments).

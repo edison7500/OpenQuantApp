@@ -1,12 +1,16 @@
+import pandas as pd
 import streamlit as st
 import yfinance as yf
-import pandas as pd
 from fredapi import Fred
 
 from api.fetch_news import fetch_and_analyze
-from utils.human_readable import format_human_readable, format_percentage
-from utils.human_readable import format_value, get_display_format
 from database.connections.arcticdb_conn import ArcticDBConnection
+from utils.human_readable import (
+    format_human_readable,
+    format_percentage,
+    format_value,
+    get_display_format,
+)
 
 
 @st.fragment
@@ -176,85 +180,85 @@ def macro_data_tiles_fragment() -> None:
         pass
 
 
-@st.fragment
-def macro_data_grid_fragment() -> None:
-    """显示 FRED 宏观经济数据网格 - 用于侧边栏"""
-    st.subheader("🌍 宏观数据 (Macroeconomic Data)")
+# @st.fragment
+# def macro_data_grid_fragment() -> None:
+#     """显示 FRED 宏观经济数据网格 - 用于侧边栏"""
+#     st.subheader("🌍 宏观数据 (Macroeconomic Data)")
 
-    # FRED 系列 ID 映射
-    metrics_map = {
-        "联邦基金利率": {
-            "series_id": "FEDFUNDS",
-            "unit": "%",
-            "description": "有效联邦基金利率",
-        },
-        "通胀率 (CPI)": {
-            "series_id": "CPIAUCSL",
-            "unit": "% YoY",
-            "description": "消费者价格指数同比",
-        },
-        "美元指数": {
-            "series_id": "DTWEXBGS",
-            "unit": "",
-            "description": "美元兑主要货币篮子",
-        },
-        "10 年期美债": {
-            "series_id": "DGS10",
-            "unit": "%",
-            "description": "10 年期国债收益率",
-        },
-    }
+#     # FRED 系列 ID 映射
+#     metrics_map = {
+#         "联邦基金利率": {
+#             "series_id": "FEDFUNDS",
+#             "unit": "%",
+#             "description": "有效联邦基金利率",
+#         },
+#         "通胀率 (CPI)": {
+#             "series_id": "CPIAUCSL",
+#             "unit": "% YoY",
+#             "description": "消费者价格指数同比",
+#         },
+#         "美元指数": {
+#             "series_id": "DTWEXBGS",
+#             "unit": "",
+#             "description": "美元兑主要货币篮子",
+#         },
+#         "10 年期美债": {
+#             "series_id": "DGS10",
+#             "unit": "%",
+#             "description": "10 年期国债收益率",
+#         },
+#     }
 
-    try:
-        api_key = st.secrets["fred"]["api_key"]
-        fred = Fred(api_key=api_key)
+#     try:
+#         api_key = st.secrets["fred"]["api_key"]
+#         fred = Fred(api_key=api_key)
 
-        display_data = []
-        for label, config in metrics_map.items():
-            series_id = config["series_id"]
-            data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
-            if data is not None:
-                value = data.iloc[-1]
-                # CPI 需要计算同比变化
-                if series_id == "CPIAUCSL":
-                    cpi_data = _fetch_fred_series_with_retry(
-                        fred, series_id, limit=13
-                    )
-                    if cpi_data is not None and len(cpi_data) >= 13:
-                        current = cpi_data.iloc[-1]
-                        year_ago = cpi_data.iloc[-13]
-                        value = ((current - year_ago) / year_ago) * 100
-                display_data.append(
-                    (
-                        label,
-                        float(value),
-                        config["unit"],
-                        config["description"],
-                    )
-                )
+#         display_data = []
+#         for label, config in metrics_map.items():
+#             series_id = config["series_id"]
+#             data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
+#             if data is not None:
+#                 value = data.iloc[-1]
+#                 # CPI 需要计算同比变化
+#                 if series_id == "CPIAUCSL":
+#                     cpi_data = _fetch_fred_series_with_retry(
+#                         fred, series_id, limit=13
+#                     )
+#                     if cpi_data is not None and len(cpi_data) >= 13:
+#                         current = cpi_data.iloc[-1]
+#                         year_ago = cpi_data.iloc[-13]
+#                         value = ((current - year_ago) / year_ago) * 100
+#                 display_data.append(
+#                     (
+#                         label,
+#                         float(value),
+#                         config["unit"],
+#                         config["description"],
+#                     )
+#                 )
 
-        if not display_data:
-            st.info("暂无宏观数据")
+#         if not display_data:
+#             st.info("暂无宏观数据")
 
-    except Exception as e:
-        st.error(f"获取宏观数据失败：{e}")
+#     except Exception as e:
+#         st.error(f"获取宏观数据失败：{e}")
 
-    if display_data:
-        # 使用 2x2 网格布局
-        row1 = st.columns(2)
-        row2 = st.columns(2)
-        rows = [row1, row2]
+#     if display_data:
+#         # 使用 2x2 网格布局
+#         row1 = st.columns(2)
+#         row2 = st.columns(2)
+#         rows = [row1, row2]
 
-        for i, (label, value, unit, desc) in enumerate(display_data[:4]):
-            with rows[i // 2][i % 2]:
-                with st.container(border=True):
-                    st.caption(f"{label}")
-                    st.metric(
-                        label=desc,
-                        value=f"{value:.2f}{unit}" if unit else f"{value:.2f}",
-                    )
-    else:
-        st.info("暂无宏观数据")
+#         for i, (label, value, unit, desc) in enumerate(display_data[:4]):
+#             with rows[i // 2][i % 2]:
+#                 with st.container(border=True):
+#                     st.caption(f"{label}")
+#                     st.metric(
+#                         label=desc,
+#                         value=f"{value:.2f}{unit}" if unit else f"{value:.2f}",
+#                     )
+#     else:
+#         st.info("暂无宏观数据")
 
 
 @st.fragment
@@ -312,10 +316,6 @@ def financial_reports_sidebar_fragment(symbol: str) -> None:
 
     except Exception as e:
         st.error(f"无法加载财务报表：{e}")
-
-    # 在财务报表下方显示宏观数据
-    st.divider()
-    macro_data_grid_fragment()
 
 
 @st.fragment

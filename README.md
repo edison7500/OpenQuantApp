@@ -30,7 +30,6 @@ quant-app/
 │   ├── strategies.py   # Signal identification (FVG, MACD, breakouts)
 │   └── chart_factory.py # Plotly chart builder
 ├── ui/                 # Streamlit UI layer
-│   ├── common_layout.py # Shared UI layout and styling
 │   ├── equity.py       # Equity analysis page
 │   ├── indices.py      # Indices analysis page
 │   ├── etf.py          # ETF analysis page
