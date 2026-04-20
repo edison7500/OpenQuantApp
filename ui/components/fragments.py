@@ -105,8 +105,80 @@ def _fetch_fred_series_with_retry(
 
 
 @st.fragment
+def macro_data_tiles_fragment() -> None:
+    """显示 FRED 宏观经济数据磁贴 - 用于主视觉区顶部"""
+    # FRED 系列 ID 映射
+    metrics_map = {
+        "联邦基金利率": {
+            "series_id": "FEDFUNDS",
+            "unit": "%",
+            "icon": "🏦",
+        },
+        "通胀率 (CPI)": {
+            "series_id": "CPIAUCSL",
+            "unit": "% YoY",
+            "icon": "📊",
+        },
+        "美元指数": {
+            "series_id": "DTWEXBGS",
+            "unit": "",
+            "icon": "💵",
+        },
+        "10 年期美债": {
+            "series_id": "DGS10",
+            "unit": "%",
+            "icon": "📈",
+        },
+    }
+
+    try:
+        api_key = st.secrets["fred"]["api_key"]
+        fred = Fred(api_key=api_key)
+
+        display_data = []
+        for label, config in metrics_map.items():
+            series_id = config["series_id"]
+            data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
+            if data is not None:
+                value = data.iloc[-1]
+                # CPI 需要计算同比变化
+                if series_id == "CPIAUCSL":
+                    cpi_data = _fetch_fred_series_with_retry(
+                        fred, series_id, limit=13
+                    )
+                    if cpi_data is not None and len(cpi_data) >= 13:
+                        current = cpi_data.iloc[-1]
+                        year_ago = cpi_data.iloc[-13]
+                        value = ((current - year_ago) / year_ago) * 100
+                display_data.append(
+                    (
+                        label,
+                        float(value),
+                        config["unit"],
+                        config["icon"],
+                    )
+                )
+
+        if display_data:
+            # 使用 4 列水平布局 - 数据磁贴设计
+            tiles = st.columns(4)
+            for i, (label, value, unit, icon) in enumerate(display_data[:4]):
+                with tiles[i]:
+                    with st.container(border=True):
+                        st.markdown(f"{icon} **{label}**")
+                        st.metric(
+                            label="",
+                            value=f"{value:.2f}{unit}"
+                            if unit
+                            else f"{value:.2f}",
+                        )
+    except Exception:
+        pass
+
+
+@st.fragment
 def macro_data_grid_fragment() -> None:
-    """显示 FRED 宏观经济数据网格"""
+    """显示 FRED 宏观经济数据网格 - 用于侧边栏"""
     st.subheader("🌍 宏观数据 (Macroeconomic Data)")
 
     # FRED 系列 ID 映射
