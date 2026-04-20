@@ -10,7 +10,7 @@ from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
     news_grid_fragment,
     symbolmeta_sidebar_fragment,
-    macro_data_tiles_fragment,
+    macro_data_marquee_fragment,
 )
 from ui.components.sidebar import render_common_sidebar
 
@@ -62,9 +62,10 @@ def main():
 
     with col_main:
         # --- 宏观经济数据磁贴 (主视觉区顶部) ---
-        macro_data_tiles_fragment()
+        macro_data_marquee_fragment()
 
         # --- 确保用户选择了完整的起始和结束时间 ---
+
         if symbol and len(date_selection) == 2:
             start_date, end_date = date_selection
 

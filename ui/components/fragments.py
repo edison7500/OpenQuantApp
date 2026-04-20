@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 import yfinance as yf
-from fredapi import Fred
+from engine.macro_manager import get_macro_metrics
 
 from api.fetch_news import fetch_and_analyze
 from database.connections.arcticdb_conn import ArcticDBConnection
@@ -89,95 +89,58 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
         pass
 
 
-def _fetch_fred_series_with_retry(
-    fred: Fred, series_id: str, limit: int = 1, max_retries: int = 3
-) -> pd.Series | None:
-    """从 FRED 获取数据，带重试机制"""
-    import time
-
-    for attempt in range(max_retries):
-        try:
-            data = fred.get_series(series_id, limit=limit)
-            if not data.empty:
-                return data
-            return None
-        except Exception:
-            if attempt == max_retries - 1:
-                raise
-            time.sleep(0.5 * (attempt + 1))  # 递增延迟重试
-    return None
-
-
 @st.fragment
-def macro_data_tiles_fragment() -> None:
-    """显示 FRED 宏观经济数据磁贴 - 用于主视觉区顶部"""
-    # FRED 系列 ID 映射
-    metrics_map = {
-        "联邦基金利率": {
-            "series_id": "FEDFUNDS",
-            "unit": "%",
-            "icon": "🏦",
-        },
-        "通胀率 (CPI)": {
-            "series_id": "CPIAUCSL",
-            "unit": "% YoY",
-            "icon": "📊",
-        },
-        "美元指数": {
-            "series_id": "DTWEXBGS",
-            "unit": "",
-            "icon": "💵",
-        },
-        "10 年期美债": {
-            "series_id": "DGS10",
-            "unit": "%",
-            "icon": "📈",
-        },
-    }
+def macro_data_marquee_fragment() -> None:
+    """显示 FRED 宏观经济数据跑马灯 - 用于主视觉区顶部"""
+    display_data = get_macro_metrics()
 
-    try:
-        api_key = st.secrets["fred"]["api_key"]
-        fred = Fred(api_key=api_key)
+    if display_data:
+        # 构建跑马灯内容
+        items_html = ""
+        for label, value, unit, icon in display_data:
+            val_str = f"{value:.2f}{unit}" if unit else f"{value:.2f}"
+            items_html += f'<span class="macro-item">{icon} <b>{label}</b>: {val_str}</span>'
+        
+        # 为了实现无缝循环，内容需要重复
+        marquee_content = items_html * 3
 
-        display_data = []
-        for label, config in metrics_map.items():
-            series_id = config["series_id"]
-            data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
-            if data is not None:
-                value = data.iloc[-1]
-                # CPI 需要计算同比变化
-                if series_id == "CPIAUCSL":
-                    cpi_data = _fetch_fred_series_with_retry(
-                        fred, series_id, limit=13
-                    )
-                    if cpi_data is not None and len(cpi_data) >= 13:
-                        current = cpi_data.iloc[-1]
-                        year_ago = cpi_data.iloc[-13]
-                        value = ((current - year_ago) / year_ago) * 100
-                display_data.append(
-                    (
-                        label,
-                        float(value),
-                        config["unit"],
-                        config["icon"],
-                    )
-                )
-
-        if display_data:
-            # 使用 4 列水平布局 - 数据磁贴设计
-            tiles = st.columns(4)
-            for i, (label, value, unit, icon) in enumerate(display_data[:4]):
-                with tiles[i]:
-                    with st.container(border=True):
-                        st.markdown(f"{icon} **{label}**")
-                        st.metric(
-                            label="",
-                            value=f"{value:.2f}{unit}"
-                            if unit
-                            else f"{value:.2f}",
-                        )
-    except Exception:
-        pass
+        st.markdown(
+            f"""
+            <style>
+            .macro-marquee-container {{
+                width: 100%;
+                overflow: hidden;
+                background: rgba(0, 0, 0, 0.05);
+                border-radius: 10px;
+                padding: 10px 0;
+                margin-bottom: 20px;
+                border: 1px solid rgba(0, 0, 0, 0.1);
+                display: flex;
+            }}
+            .macro-marquee-track {{
+                display: flex;
+                white-space: nowrap;
+                animation: marquee 30s linear infinite;
+            }}
+            .macro-item {{
+                display: inline-block;
+                padding: 0 30px;
+                font-size: 14px;
+                color: #31333F;
+            }}
+            @keyframes marquee {{
+                0% {{ transform: translateX(0); }}
+                100% {{ transform: translateX(-33.33%); }}
+            }}
+            </style>
+            <div class="macro-marquee-container">
+                <div class="macro-marquee-track">
+                    {marquee_content}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 # @st.fragment
