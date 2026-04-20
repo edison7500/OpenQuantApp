@@ -1,10 +1,10 @@
 import pandas as pd
 import streamlit as st
 import yfinance as yf
-from engine.macro_manager import get_macro_metrics
 
 from api.fetch_news import fetch_and_analyze
 from database.connections.arcticdb_conn import ArcticDBConnection
+from engine.macro_manager import get_macro_metrics
 from utils.human_readable import (
     format_human_readable,
     format_percentage,
@@ -100,7 +100,7 @@ def macro_data_marquee_fragment() -> None:
         for label, value, unit, icon in display_data:
             val_str = f"{value:.2f}{unit}" if unit else f"{value:.2f}"
             items_html += f'<span class="macro-item">{icon} <b>{label}</b>: {val_str}</span>'
-        
+
         # 为了实现无缝循环，内容需要重复
         marquee_content = items_html * 3
 
@@ -143,85 +143,11 @@ def macro_data_marquee_fragment() -> None:
         )
 
 
-# @st.fragment
-# def macro_data_grid_fragment() -> None:
-#     """显示 FRED 宏观经济数据网格 - 用于侧边栏"""
-#     st.subheader("🌍 宏观数据 (Macroeconomic Data)")
-
-#     # FRED 系列 ID 映射
-#     metrics_map = {
-#         "联邦基金利率": {
-#             "series_id": "FEDFUNDS",
-#             "unit": "%",
-#             "description": "有效联邦基金利率",
-#         },
-#         "通胀率 (CPI)": {
-#             "series_id": "CPIAUCSL",
-#             "unit": "% YoY",
-#             "description": "消费者价格指数同比",
-#         },
-#         "美元指数": {
-#             "series_id": "DTWEXBGS",
-#             "unit": "",
-#             "description": "美元兑主要货币篮子",
-#         },
-#         "10 年期美债": {
-#             "series_id": "DGS10",
-#             "unit": "%",
-#             "description": "10 年期国债收益率",
-#         },
-#     }
-
-#     try:
-#         api_key = st.secrets["fred"]["api_key"]
-#         fred = Fred(api_key=api_key)
-
-#         display_data = []
-#         for label, config in metrics_map.items():
-#             series_id = config["series_id"]
-#             data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
-#             if data is not None:
-#                 value = data.iloc[-1]
-#                 # CPI 需要计算同比变化
-#                 if series_id == "CPIAUCSL":
-#                     cpi_data = _fetch_fred_series_with_retry(
-#                         fred, series_id, limit=13
-#                     )
-#                     if cpi_data is not None and len(cpi_data) >= 13:
-#                         current = cpi_data.iloc[-1]
-#                         year_ago = cpi_data.iloc[-13]
-#                         value = ((current - year_ago) / year_ago) * 100
-#                 display_data.append(
-#                     (
-#                         label,
-#                         float(value),
-#                         config["unit"],
-#                         config["description"],
-#                     )
-#                 )
-
-#         if not display_data:
-#             st.info("暂无宏观数据")
-
-#     except Exception as e:
-#         st.error(f"获取宏观数据失败：{e}")
-
-#     if display_data:
-#         # 使用 2x2 网格布局
-#         row1 = st.columns(2)
-#         row2 = st.columns(2)
-#         rows = [row1, row2]
-
-#         for i, (label, value, unit, desc) in enumerate(display_data[:4]):
-#             with rows[i // 2][i % 2]:
-#                 with st.container(border=True):
-#                     st.caption(f"{label}")
-#                     st.metric(
-#                         label=desc,
-#                         value=f"{value:.2f}{unit}" if unit else f"{value:.2f}",
-#                     )
-#     else:
-#         st.info("暂无宏观数据")
+@st.cache_data(ttl=3600)
+def get_ticker_info(_symbol: str) -> dict:
+    """Fetch and cache ticker info from yfinance."""
+    ticker = yf.Ticker(_symbol)
+    return ticker.info
 
 
 @st.fragment
@@ -230,11 +156,11 @@ def financial_reports_sidebar_fragment(symbol: str) -> None:
     st.divider()
     st.subheader("📊 财务报表 (Financial Reports)")
 
-    ticker = yf.Ticker(symbol)
-
     try:
-        # 使用 .info 获取更详细的财务指标
-        info = ticker.info
+        # 使用缓存的函数获取更详细的财务指标
+        info = get_ticker_info(symbol)
+
+        # 定义要显示的指标映射 (Label: key_in_info)
 
         # 定义要显示的指标映射 (Label: key_in_info)
         metrics_map = {
