@@ -183,11 +183,17 @@ def main():
                 st.session_state.update_selection = []
             if "current_page" not in st.session_state:
                 st.session_state.current_page = 1
+            if "_status_cache" not in st.session_state:
+                st.session_state._status_cache = {}
 
             # 添加删除列
             df_display = df.copy()
             df_display["删除"] = [False] * len(df_display)
             df_display["更新"] = [False] * len(df_display)
+
+            # 初始化状态缓存用于追踪 is_active 的变更
+            if "_status_cache" not in st.session_state:
+                st.session_state._status_cache = {}
 
             # 分页设置
             rows_per_page = 20
@@ -263,6 +269,15 @@ def main():
                 ):
                     st.session_state.update_selection.remove(sym)
 
+                # 追踪状态变更
+                orig_status = df_display[df_display["代码"] == sym][
+                    "状态"
+                ].iloc[0]
+                if row["状态"] != orig_status:
+                    st.session_state._status_cache[sym] = row["状态"]
+                elif sym in st.session_state._status_cache:
+                    del st.session_state._status_cache[sym]
+
             # 显示当前选择
             st.write(
                 f"已选择 **{len(st.session_state.delete_selection)}** 个资产进行删除，"
@@ -288,30 +303,20 @@ def main():
                     type="primary",
                     width="content",
                 ):
-                    # 1. 处理状态更新 (is_active) - 需要遍历所有页面的数据
+                    # 1. 处理状态更新 (is_active) - 遍历所有页面的变更
                     try:
-                        for idx in range(0, len(df_display), rows_per_page):
-                            page_df = df_display.iloc[
-                                idx : idx + rows_per_page
-                            ].copy()
-                            # 从 session_state 获取该页面的编辑状态
-                            for _, row in page_df.iterrows():
-                                sym = row["代码"]
-                                # 获取原始状态
-                                orig_row = df_display[
-                                    df_display["代码"] == sym
-                                ].iloc[0]
-                                if sym in st.session_state._status_cache:
-                                    new_status = (
-                                        st.session_state._status_cache[sym]
-                                    )
-                                    if new_status != orig_row["状态"]:
-                                        meta = db_manager.get_symbol_meta(sym)
-                                        if meta:
-                                            meta.is_active = new_status
-                                            meta.updated_at = datetime.now()
-                                            db_manager.update_symbol_meta(meta)
-                                            st.toast(f"已更新 {sym} 的状态")
+                        for (
+                            sym,
+                            new_status,
+                        ) in st.session_state._status_cache.items():
+                            meta = db_manager.get_symbol_meta(sym)
+                            if meta:
+                                meta.is_active = new_status
+                                meta.updated_at = datetime.now()
+                                db_manager.update_symbol_meta(meta)
+                                st.toast(f"已更新 {sym} 的状态")
+                        # 清空缓存
+                        st.session_state._status_cache = {}
                     except Exception as e:
                         st.error(f"状态更新失败：{str(e)}")
 
@@ -325,6 +330,7 @@ def main():
                             )
                             st.session_state.delete_selection = []
                             st.session_state.update_selection = []
+                            st.session_state._status_cache = {}
                             st.rerun()
                         except Exception as e:
                             st.error(f"删除失败：{str(e)}")
@@ -356,6 +362,7 @@ def main():
                                 f"已更新 {len(st.session_state.update_selection)} 个资产"
                             )
                             st.session_state.update_selection = []
+                            st.session_state._status_cache = {}
                             st.rerun()
                         except Exception as e:
                             st.error(f"更新失败：{str(e)}")
