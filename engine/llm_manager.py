@@ -1,7 +1,6 @@
 import logging
 import threading
 
-# from typing import Any, Dict, List, Optional, Tuple
 # import pandas as pd
 import streamlit as st
 from llama_index.core import Settings
@@ -50,6 +49,79 @@ class LLMManager:
             logger.error(f"Initialization failed: {e}")
             self.llm = None
 
+    # def get_vbt_analysis(self, technical_data) -> dict:
+    #     """利用 vectorbt 分析资产的风险指标"""
+    #     try:
+    #         import vectorbt as vbt
+
+    #         if technical_data is None or technical_data.empty:
+    #             return {}
+
+    #         # 确保有 close 列
+    #         if "close" not in technical_data.columns:
+    #             logger.warning(
+    #                 "technical_data does not contain 'close' column for VBT analysis"
+    #             )
+    #             return {}
+
+    #         close = technical_data["close"]
+    #         # 简单的持有策略用于分析资产本身的风险属性
+    #         pf = vbt.Portfolio.from_holdings(close)
+    #         stats = pf.stats()
+
+    #         return {
+    #             "Max Drawdown [%]": stats.get("Max Drawdown [%]"),
+    #             "Sharpe Ratio": stats.get("Sharpe Ratio"),
+    #             "Calmar Ratio": stats.get("Calmar Ratio"),
+    #             "Total Return [%]": stats.get("Total Return [%]"),
+    #             "Win Rate [%]": stats.get("Win Rate [%]"),
+    #             "Volatility [%]": stats.get("Annualized Volatility [%]"),
+    #         }
+    #     except Exception as e:
+    #         logger.error(f"VBT Analysis Error: {e}")
+    #         return {}
+    def get_vbt_analysis(self, technical_data) -> dict:
+        """利用 vectorbt 深入剖析资产风险（CRO 专用版）"""
+        try:
+            import vectorbt as vbt
+            import pandas as pd
+
+            if (
+                technical_data is None
+                or technical_data.empty
+                or "close" not in technical_data.columns
+            ):
+                return {}
+
+            close = technical_data["close"]
+
+            # 使用 Benchmark 模式（买入持有）评估资产原始风险
+            pf = vbt.Portfolio.from_holdings(close, init_cash=10000)
+            stats = pf.stats()
+
+            # 提取对 CRO 决策最关键的量化维度
+            return {
+                "Max Drawdown [%]": stats.get("Max Drawdown [%]"),
+                "Max Drawdown Duration": str(
+                    stats.get("Max Drawdown Duration")
+                ),  # 转换成字符串方便 LLM 理解
+                "Sharpe Ratio": stats.get("Sharpe Ratio"),
+                "Sortino Ratio": stats.get(
+                    "Sortino Ratio"
+                ),  # 专门衡量下行风险
+                "Calmar Ratio": stats.get("Calmar Ratio"),  # 收益/回撤比
+                "Annualized Return [%]": stats.get("Annualized Return [%]"),
+                "Annualized Volatility [%]": stats.get(
+                    "Annualized Volatility [%]"
+                ),
+                "Expectancy": stats.get(
+                    "Expectancy"
+                ),  # 期望收益，判断这是否是一场‘赢面’更大的博弈
+            }
+        except Exception as e:
+            logger.error(f"VBT Analysis Error: {e}")
+            return {}
+
     def build_ai_context(self, symbol: str, **kwargs) -> str:
         """优化后的上下文构建，增加了对数值的格式化处理"""
         context_parts = [f"### Analysis Context for {symbol}"]
@@ -75,36 +147,67 @@ class LLMManager:
         backtest_data = kwargs.get("backtest_data")
         if backtest_data is not None and not backtest_data.empty:
             # 回测数据通常是汇总指标，取最后一行或整体
-            last_row = backtest_data.iloc[-1] if hasattr(backtest_data, 'iloc') else backtest_data
+            last_row = (
+                backtest_data.iloc[-1]
+                if hasattr(backtest_data, "iloc")
+                else backtest_data
+            )
             if isinstance(last_row, (dict,)):
                 items = [f"- {k}: {fmt(v)}" for k, v in last_row.items()]
-            elif hasattr(last_row, 'index'): # Series
-                items = [f"- {col}: {fmt(last_row[col])}" for col in last_row.index]
+            elif hasattr(last_row, "index"):  # Series
+                items = [
+                    f"- {col}: {fmt(last_row[col])}" for col in last_row.index
+                ]
             else:
                 items = [f"Data: {fmt(last_row)}"]
             context_parts.append(
                 "#### Backtest Performance:\n" + "\n".join(items)
             )
 
+        # 处理量化风险分析 (VBT)
+        vbt_data = kwargs.get("vbt_analysis")
+        if vbt_data:
+            items = [f"- {k}: {fmt(v)}" for k, v in vbt_data.items()]
+            context_parts.append(
+                "#### VectorBT Risk Analysis:\n" + "\n".join(items)
+            )
+
         # 处理基本面数据 (Financial)
         fin_data = kwargs.get("financial_data")
         if fin_data:
-            items = [f"- {k}: {fmt(v)}" for k, v in fin_data.items()] if isinstance(fin_data, dict) else [f"Data: {fmt(fin_data)}"]
-            context_parts.append("#### Financial Metrics:\n" + "\n".join(items))
+            items = (
+                [f"- {k}: {fmt(v)}" for k, v in fin_data.items()]
+                if isinstance(fin_data, dict)
+                else [f"Data: {fmt(fin_data)}"]
+            )
+            context_parts.append(
+                "#### Financial Metrics:\n" + "\n".join(items)
+            )
 
         # 处理宏观数据 (Macro)
         macro_data = kwargs.get("macro_data")
         if macro_data:
-            items = [f"- {k}: {fmt(v)}" for k, v in macro_data.items()] if isinstance(macro_data, dict) else [f"Data: {fmt(macro_data)}"]
-            context_parts.append("#### Macro Environment:\n" + "\n".join(items))
+            items = (
+                [f"- {k}: {fmt(v)}" for k, v in macro_data.items()]
+                if isinstance(macro_data, dict)
+                else [f"Data: {fmt(macro_data)}"]
+            )
+            context_parts.append(
+                "#### Macro Environment:\n" + "\n".join(items)
+            )
 
         # 处理新闻数据 (News)
         news_data = kwargs.get("news_data")
         if news_data is not None and not news_data.empty:
             # 提取最新的几条新闻标题或情感得分
             recent_news = news_data.head(3)
-            items = [f"- {row.get('title', 'News')}: {row.get('sentiment', 'N/A')}" for _, row in recent_news.iterrows()]
-            context_parts.append("#### Recent News Sentiment:\n" + "\n".join(items))
+            items = [
+                f"- {row.get('title', 'News')}: {row.get('sentiment', 'N/A')}"
+                for _, row in recent_news.iterrows()
+            ]
+            context_parts.append(
+                "#### Recent News Sentiment:\n" + "\n".join(items)
+            )
 
         return "\n\n".join(context_parts)
 
@@ -114,31 +217,52 @@ class LLMManager:
         if not self.llm:
             return "❌ AI 模块未就绪，请检查 API 配置。"
 
+        # 集成 VectorBT 风险分析
+        tech_data = data_kwargs.get("technical_data")
+        vbt_analysis = self.get_vbt_analysis(tech_data)
+        data_kwargs["vbt_analysis"] = vbt_analysis
+
         context = self.build_ai_context(symbol, **data_kwargs)
 
         # prompt = (
-        #     f"作为资深量化分析师，请根据以下数据对 {symbol} 进行深度逻辑推理。\n"
-        #     f"要求：结论简洁、分点陈述、指出潜在风险。\n"
-        #     f"根据当前 macro 逆风（权重-30%）和强劲财报（权重+50%），计算得出长期看涨概率为 65%。\n"
-        #     f"请特别关注：1. 自由现金流是否足以支撑当前股息；2. 技术面 RSI 是否与宏观情绪背离。\n\n"
-        #     f"--- DATA ---\n{context}\n\n--- ANALYSIS ---"
+        #     f"### 角色设定\n"
+        #     f"你现在是该资产的【首席风险官 (Chief Risk Officer, CRO)】。你的核心职责是穿透增长假象，识别潜在的毁灭性风险，并确保资本金的安全。\n\n"
+        #     f"### 任务目标\n"
+        #     f"基于提供的数据（特别是 VectorBT 的量化风险指标），对 {symbol} 进行压力测试分析。你不再关注简单的‘上涨’，而关注‘在最坏情况下会失去多少’。\n\n"
+        #     f"### 首席风险官评估准则 (CRO Rubric)\n"
+        #     f"1. **最大回撤 (Max Drawdown) 分析**：分析 VBT 报告中的最大回撤。该回撤是否在可接受范围内？历史回撤的恢复周期如何？\n"
+        #     f"2. **风险调整后收益**：审视 Sharpe 和 Calmar 比率。当前的收益是否是以承担过高的波动率/风险为代价的？\n"
+        #     f"3. **极端场景推演**：结合宏观压力与回测数据，推演在极端市场条件下（如流动性危机、政策突变）该资产的生存能力。\n"
+        #     f"4. **对冲建议**：基于风险分析，给出具体的风险对冲方向或仓位管理建议。\n\n"
+        #     f"### 输入数据 (DATA SNAPSHOT)\n"
+        #     f"{context}\n\n"
+        #     f"### CRO 深度分析要求\n"
+        #     f"1. **风险剖析**：基于 VBT 指标，量化该资产的风险等级（低/中/高/极高），并给出证据。\n"
+        #     f"2. **潜在地雷**：识别基本面（FCF, Payout）与量化面（MDD, Volatility）之间隐藏的矛盾点。\n"
+        #     f"3. **资本金生存分析**：如果现在全仓进入，最坏情况下的资金损失是多少？该损失是否会导致整体组合崩溃？\n"
+        #     f"4. **最终结论**：给出【风险可控/谨慎持有/立即撤离】的判定，以及一个 1-10 的风险警示分（10 分为最危险）。\n\n"
+        #     f"--- OUTPUT ---"
         # )
         prompt = (
             f"### 角色设定\n"
-            f"你是一名严谨的资深量化策略师，擅长结合历史回测统计与多维实时指标进行决策推演。\n\n"
+            f"你现在是该资产的【首席风险官 (CRO)】。你拥有极度审慎的思维，拒绝乐观主义。你的格言是：'利润会照顾好自己，我的工作是管理亏损。'\n\n"  # 强化性格特征
             f"### 任务目标\n"
-            f"基于提供的数据，对 {symbol} 的长期投资价值与短期交易机会进行概率分析。分析必须遵循“证据优先”原则，结论需逻辑闭环。\n\n"
-            f"### 核心评估准则 (Evaluation Rubric)\n"
-            f"1. **股息安全性**：深度分析自由现金流 (FCF) 与派息比率 (Payout Ratio)，判断当前股息的可持续性及增长潜力。\n"
-            f"2. **背离识别**：审视技术面 (如 RSI) 与宏观/基本面是否存在背离（例如：股价因宏观情绪下跌但 RSI 进入超卖区且财报强劲）。\n"
-            f"3. **回测对齐**：若当前数据符合高胜率历史模式，请指出；若当前宏观环境异常（如极高利率），需调整历史预测的置信度。\n\n"
-            f"### 输入数据 (DATA SNAPSHOT)\n"
+            f"基于 VectorBT 的量化回测报告，对 {symbol} 进行生存能力压力测试。请穿透数据，寻找隐藏在年化收益背后的‘归零风险’。\n\n"
+            f"### CRO 核心评估逻辑\n"
+            f"1. **回撤质量 (DD Quality)**：分析 VBT 中的 Max Drawdown。不要只看百分比，要结合 **Max Drawdown Duration (回撤持续时长)**。长期无法回补的回撤比深度回撤更具毁灭性。\n"  # 增加时长维度
+            f"2. **收益的‘毒性’评估**：审视 Sharpe。如果波动率（Volatility）极高而 Sharpe 仅在 1 左右，判定为‘低质量收益’。重点查看 **Calmar 比率**，若 < 1.0，视为潜在风险过载。\n"
+            f"3. **肥尾效应 (Fat-tail Risk)**：在 VBT 数据中寻找极端负收益分布。在极端 1% 的情况下，该资产是否具有破产属性？\n"
+            f"4. **基本面与量化的‘背离’**：对比 context 中的现金流(FCF)与价格波动。是否存在‘财务虚弱但价格虚高’的背离？\n\n"
+            f"### 输入数据 (VECTORBT & FUNDAMENTALS)\n"
             f"{context}\n\n"
-            f"### 深度分析要求 (REQUIRED ANALYSIS)\n"
-            f"1. **长期投资推理**：结合财报强劲度与宏观压力，给出长期看涨/看跌概率，并说明计算逻辑（参考权重：宏观-30%，财报+50%，股息+20%）。\n"
-            f"2. **短期机会评估**：识别技术面入场点，并结合近期新闻触发词给出爆发概率。\n"
-            f"3. **压力测试与反向论证**：列出在何种具体条件下（如利率维持高位、FCF骤降等）该看涨逻辑将彻底失效。\n"
-            f"4. **置信度评分**：基于数据完整度与历史回测契合度，给出 1-10 分的确定性评分。\n\n"
+            f"### CRO 深度报告要求 (严格按以下结构输出)\n"
+            f"1. **【风险定性】**：量化风险等级（低/中/高/极高），必须引用至少 3 个 VBT 核心指标作为证据。\n"
+            f"2. **【最差情景模拟】**：若发生类似 2008 年或 2020 年的流动性枯竭，预测该资产的 **期望最大跌幅** 及 **存活概率**。\n"
+            f"3. **【防御性对冲】**：给出具体操作建议。例如：建议设置多少比例的硬性止损？需要何种负相关资产进行对冲？\n"
+            f"4. **【CRO 最终判决】**：\n"
+            f"   - 判定：[立即撤离 / 减持观望 / 谨慎持有 / 风险可控]\n"
+            f"   - 风险警示分：X/10（分数越高代表越可能出现永久性资本损失）。\n"
+            f"   - 一句话警告：给投资者最刺耳的一句忠告。\n\n"
             f"--- OUTPUT ---"
         )
 
