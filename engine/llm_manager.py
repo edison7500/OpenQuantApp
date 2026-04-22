@@ -1,7 +1,7 @@
 import logging
 import threading
 
-# import pandas as pd
+import pandas as pd  # noqa
 import streamlit as st
 from llama_index.core import Settings
 from llama_index.llms.google_genai import GoogleGenAI
