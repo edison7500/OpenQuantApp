@@ -173,6 +173,12 @@ def main():
     st.divider()
     st.subheader("📋 同步日志")
 
+    if st.button("🗑️ 清除所有日志"):
+        for log in LOG_DIR.glob("*.log"):
+            log.unlink()
+        st.success("所有日志已清除")
+        st.rerun()
+
     if LOG_FILE.exists():
         with open(LOG_FILE, "r") as f:
             logs = f.read()

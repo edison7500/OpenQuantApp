@@ -84,7 +84,6 @@ class LLMManager:
         """利用 vectorbt 深入剖析资产风险（CRO 专用版）"""
         try:
             import vectorbt as vbt
-            import pandas as pd
 
             if (
                 technical_data is None
@@ -212,7 +211,7 @@ class LLMManager:
         return "\n\n".join(context_parts)
 
     # @st.cache_data(show_spinner="AI 正在分析数据，请稍候...")
-    def analyze_symbol(self, symbol: str, **data_kwargs) -> str:
+    def analyze_symbol(self, symbol: str, **data_kwargs):
         """增加缓存机制，避免相同数据的重复 API 调用"""
         if not self.llm:
             return "❌ AI 模块未就绪，请检查 API 配置。"
@@ -223,26 +222,6 @@ class LLMManager:
         data_kwargs["vbt_analysis"] = vbt_analysis
 
         context = self.build_ai_context(symbol, **data_kwargs)
-
-        # prompt = (
-        #     f"### 角色设定\n"
-        #     f"你现在是该资产的【首席风险官 (Chief Risk Officer, CRO)】。你的核心职责是穿透增长假象，识别潜在的毁灭性风险，并确保资本金的安全。\n\n"
-        #     f"### 任务目标\n"
-        #     f"基于提供的数据（特别是 VectorBT 的量化风险指标），对 {symbol} 进行压力测试分析。你不再关注简单的‘上涨’，而关注‘在最坏情况下会失去多少’。\n\n"
-        #     f"### 首席风险官评估准则 (CRO Rubric)\n"
-        #     f"1. **最大回撤 (Max Drawdown) 分析**：分析 VBT 报告中的最大回撤。该回撤是否在可接受范围内？历史回撤的恢复周期如何？\n"
-        #     f"2. **风险调整后收益**：审视 Sharpe 和 Calmar 比率。当前的收益是否是以承担过高的波动率/风险为代价的？\n"
-        #     f"3. **极端场景推演**：结合宏观压力与回测数据，推演在极端市场条件下（如流动性危机、政策突变）该资产的生存能力。\n"
-        #     f"4. **对冲建议**：基于风险分析，给出具体的风险对冲方向或仓位管理建议。\n\n"
-        #     f"### 输入数据 (DATA SNAPSHOT)\n"
-        #     f"{context}\n\n"
-        #     f"### CRO 深度分析要求\n"
-        #     f"1. **风险剖析**：基于 VBT 指标，量化该资产的风险等级（低/中/高/极高），并给出证据。\n"
-        #     f"2. **潜在地雷**：识别基本面（FCF, Payout）与量化面（MDD, Volatility）之间隐藏的矛盾点。\n"
-        #     f"3. **资本金生存分析**：如果现在全仓进入，最坏情况下的资金损失是多少？该损失是否会导致整体组合崩溃？\n"
-        #     f"4. **最终结论**：给出【风险可控/谨慎持有/立即撤离】的判定，以及一个 1-10 的风险警示分（10 分为最危险）。\n\n"
-        #     f"--- OUTPUT ---"
-        # )
         prompt = (
             f"### 角色设定\n"
             f"你现在是该资产的【首席风险官 (CRO)】。你拥有极度审慎的思维，拒绝乐观主义。你的格言是：'利润会照顾好自己，我的工作是管理亏损。'\n\n"  # 强化性格特征
@@ -267,6 +246,15 @@ class LLMManager:
         )
 
         return self.complete(prompt)
+
+    def stream_complete(self, prompt: str, **kwargs):
+        try:
+            response = self.llm.stream_complete(prompt, **kwargs)
+            for token in response:
+                yield token
+        except Exception as e:
+            logger.error(f"LLM Streaming Error: {e}")
+            yield f"分析调用失败: {str(e)}"
 
     def complete(self, prompt: str, **kwargs) -> str:
         try:
