@@ -26,6 +26,7 @@ dependencies = [
     "streamlit>=1.54.0",
     "textblob>=0.19.0",
     "typer>=0.24.1",
+    "vectorbt>=0.28.5",
     "yfinance>=1.2.0",
 ]
 
