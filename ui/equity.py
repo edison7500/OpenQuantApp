@@ -8,9 +8,11 @@ from engine import (
 )  # load_and_process_data_with_range,; process_data_with_rvol,; calculate_drawdown,
 from ui.components.analysis_tabs import render_analysis_tabs
 from ui.components.fragments import (
+    ai_analysis_sidebar_fragment,
+    financial_reports_sidebar_fragment,
+    macro_data_marquee_fragment,
     news_grid_fragment,
     symbolmeta_sidebar_fragment,
-    financial_reports_sidebar_fragment,
 )
 from ui.components.sidebar import render_common_sidebar
 
@@ -55,56 +57,12 @@ def main():
     timeframe = params["timeframe"]
     rsi_length = params["rsi_length"]
 
-    # 侧边栏交互 (原代码已注释，以便于 debug)
-    # with st.sidebar:
-    #     st.header("参数设置")
-
-    #     portfolio = get_symbols()
-    #     if "symbol" not in st.session_state:
-    #         st.session_state.setdefault("symbol", portfolio[0])
-
-    #     symbol = st.selectbox(
-    #         "选择分析标的",
-    #         options=portfolio,
-    #         key="symbol",
-    #     )
-
-    #     # --- 新增：日期范围选择器 ---
-    #     now = datetime.datetime.now(tz=pytz.UTC)
-    #     default_start = now - datetime.timedelta(days=180)  # 默认看过去半年
-
-    #     # date_input 允许传入一个 tuple 来选择区间
-    #     date_selection = st.date_input(
-    #         "选择时间范围",
-    #         value=(default_start, now),
-    #         max_value=now + datetime.timedelta(days=1),
-    #     )
-
-    #     timeframe = st.select_slider(
-    #         "TimeFrame",
-    #         options=[
-    #             "1m",
-    #             "1h",
-    #             "D",
-    #         ],
-    #         value="D",
-    #     )
-
-    #     rsi_length = st.slider("RSI 周期", min_value=5, max_value=30, value=14)
-
-    #     # auto_refresh = st.toggle("开启自动刷新", value=False)
-
-    #     # 添加一个强制刷新按钮来清除缓存
-    #     if st.button("🔄 强制刷新数据"):
-    #         update_database(symbol)
-    #         get_symbols.clear()
-    #         # load_and_process_data_with_range.clear()
-    #         load_and_process_full_pipeline.clear()
-    #         calculate_drawdown.clear()
-
     col_main, col_news = st.columns([3, 1])
 
     with col_main:
+        # --- 宏观经济数据磁贴 (主视觉区顶部) ---
+        macro_data_marquee_fragment()
+
         # --- 确保用户选择了完整的起始和结束时间 ---
         if symbol and len(date_selection) == 2:
             start_date, end_date = date_selection
@@ -139,7 +97,8 @@ def main():
             symbolmeta_sidebar_fragment(symbol)
             financial_reports_sidebar_fragment(symbol)
 
-            # st.caption("最后更新: 2026-03-24 10:00")
+        # st.divider()
+        ai_analysis_sidebar_fragment(symbol, hist)
 
 
 if __name__ == "__main__":

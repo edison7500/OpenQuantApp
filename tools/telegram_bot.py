@@ -87,13 +87,16 @@ def main():
     LOG_DIR = st.session_state.get("log_dir")
     if LOG_DIR:
         import os
+
         log_file = LOG_DIR / f"cron_{datetime.now().strftime('%Y%m')}.log"
         if log_file.exists():
             with open(log_file, "r") as f:
                 all_logs = f.read()
             # 过滤出 RSI 相关的日志
             rsi_logs = "\n".join(
-                line for line in all_logs.split("\n") if "RSI" in line or "超卖" in line or "超买" in line
+                line
+                for line in all_logs.split("\n")
+                if "RSI" in line or "超卖" in line or "超买" in line
             )
             if rsi_logs.strip():
                 st.code(rsi_logs, language="text")

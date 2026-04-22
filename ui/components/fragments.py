@@ -1,12 +1,17 @@
+import pandas as pd
 import streamlit as st
 import yfinance as yf
-import pandas as pd
-from fredapi import Fred
 
 from api.fetch_news import fetch_and_analyze
-from utils.human_readable import format_human_readable, format_percentage
-from utils.human_readable import format_value, get_display_format
 from database.connections.arcticdb_conn import ArcticDBConnection
+from engine.llm_manager import llm_manager
+from engine.macro_manager import get_macro_metrics
+from utils.human_readable import (
+    format_human_readable,
+    format_percentage,
+    format_value,
+    get_display_format,
+)
 
 
 @st.fragment
@@ -85,104 +90,149 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
         pass
 
 
-def _fetch_fred_series_with_retry(
-    fred: Fred, series_id: str, limit: int = 1, max_retries: int = 3
-) -> pd.Series | None:
-    """从 FRED 获取数据，带重试机制"""
-    import time
-
-    for attempt in range(max_retries):
-        try:
-            data = fred.get_series(series_id, limit=limit)
-            if not data.empty:
-                return data
-            return None
-        except Exception:
-            if attempt == max_retries - 1:
-                raise
-            time.sleep(0.5 * (attempt + 1))  # 递增延迟重试
-    return None
-
-
 @st.fragment
-def macro_data_grid_fragment() -> None:
-    """显示 FRED 宏观经济数据网格"""
-    st.subheader("🌍 宏观数据 (Macroeconomic Data)")
+def macro_data_marquee_fragment() -> None:
+    """显示 FRED 宏观经济数据跑马灯 - 优化版"""
 
-    # FRED 系列 ID 映射
-    metrics_map = {
-        "联邦基金利率": {
-            "series_id": "FEDFUNDS",
-            "unit": "%",
-            "description": "有效联邦基金利率",
-        },
-        "通胀率 (CPI)": {
-            "series_id": "CPIAUCSL",
-            "unit": "% YoY",
-            "description": "消费者价格指数同比",
-        },
-        "美元指数": {
-            "series_id": "DTWEXBGS",
-            "unit": "",
-            "description": "美元兑主要货币篮子",
-        },
-        "10 年期美债": {
-            "series_id": "DGS10",
-            "unit": "%",
-            "description": "10 年期国债收益率",
-        },
-    }
+    # 1. 获取数据
+    display_data = get_macro_metrics()
 
-    try:
-        api_key = st.secrets["fred"]["api_key"]
-        fred = Fred(api_key=api_key)
+    if not display_data:
+        # 如果没有数据，可以选择静默退出或显示占位
+        return
 
-        display_data = []
-        for label, config in metrics_map.items():
-            series_id = config["series_id"]
-            data = _fetch_fred_series_with_retry(fred, series_id, limit=1)
-            if data is not None:
-                value = data.iloc[-1]
-                # CPI 需要计算同比变化
-                if series_id == "CPIAUCSL":
-                    cpi_data = _fetch_fred_series_with_retry(
-                        fred, series_id, limit=13
-                    )
-                    if cpi_data is not None and len(cpi_data) >= 13:
-                        current = cpi_data.iloc[-1]
-                        year_ago = cpi_data.iloc[-13]
-                        value = ((current - year_ago) / year_ago) * 100
-                display_data.append(
-                    (
-                        label,
-                        float(value),
-                        config["unit"],
-                        config["description"],
-                    )
-                )
+    # 2. 构造 HTML 列表 (使用列表推导式性能更佳)
+    items_list = [
+        f'<div class="macro-item">{icon} <b>{label}</b>: {value:.2f}{unit or ""}</div>'
+        for label, value, unit, icon in display_data
+    ]
 
-        if not display_data:
-            st.info("暂无宏观数据")
+    # 合并内容
+    single_set_html = "".join(items_list)
+    # 为了保证长短不一的数据都能实现平滑循环，重复2次配合 CSS transform
+    marquee_content = single_set_html * 2
 
-    except Exception as e:
-        st.error(f"获取宏观数据失败：{e}")
+    # 3. 渲染 Markdown
+    st.markdown(
+        f"""
+        <style>
+        /* 容器样式 */
+        .macro-marquee-container {{
+            width: 100%;
+            overflow: hidden;
+            background: var(--secondary-background-color, rgba(0, 0, 0, 0.05));
+            border-radius: 8px;
+            padding: 12px 0;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+            display: flex;
+            position: relative;
+        }}
 
-    if display_data:
-        # 使用 2x2 网格布局
-        row1 = st.columns(2)
-        row2 = st.columns(2)
-        rows = [row1, row2]
+        /* 轨道样式 */
+        .macro-marquee-track {{
+            display: flex;
+            white-space: nowrap;
+            width: max-content;
+            animation: marquee 40s linear infinite; /* 增加到40s，阅读更舒适 */
+        }}
 
-        for i, (label, value, unit, desc) in enumerate(display_data[:4]):
-            with rows[i // 2][i % 2]:
-                with st.container(border=True):
-                    st.caption(f"{label}")
-                    st.metric(
-                        label=desc,
-                        value=f"{value:.2f}{unit}" if unit else f"{value:.2f}",
-                    )
-    else:
-        st.info("暂无宏观数据")
+        /* 悬停暂停动画 */
+        .macro-marquee-container:hover .macro-marquee-track {{
+            animation-play-state: paused;
+        }}
+
+        /* 单个数据项样式 */
+        .macro-item {{
+            display: flex;
+            align-items: center;
+            padding: 0 30px;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            font-family: sans-serif;
+        }}
+
+        .macro-item b {{
+            margin-left: 4px;
+            margin-right: 2px;
+        }}
+
+        /* 关键帧：平滑循环的关键是平移 -50% */
+        @keyframes marquee {{
+            0% {{ transform: translateX(0); }}
+            100% {{ transform: translateX(-50%); }}
+        }}
+        </style>
+
+        <div class="macro-marquee-container">
+            <div class="macro-marquee-track">
+                {marquee_content}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# @st.fragment
+# def macro_data_marquee_fragment() -> None:
+#     """显示 FRED 宏观经济数据跑马灯 - 用于主视觉区顶部"""
+#     display_data = get_macro_metrics()
+
+#     if display_data:
+#         # 构建跑马灯内容
+#         items_html = ""
+#         for label, value, unit, icon in display_data:
+#             val_str = f"{value:.2f}{unit}" if unit else f"{value:.2f}"
+#             items_html += f'<span class="macro-item">{icon} <b>{label}</b>: {val_str}</span>'
+
+#         # 为了实现无缝循环，内容需要重复
+#         marquee_content = items_html * 3
+
+#         st.markdown(
+#             f"""
+#             <style>
+#             .macro-marquee-container {{
+#                 width: 100%;
+#                 overflow: hidden;
+#                 background: rgba(0, 0, 0, 0.05);
+#                 border-radius: 10px;
+#                 padding: 10px 0;
+#                 margin-bottom: 20px;
+#                 border: 1px solid rgba(0, 0, 0, 0.1);
+#                 display: flex;
+#             }}
+#             .macro-marquee-track {{
+#                 display: flex;
+#                 white-space: nowrap;
+#                 animation: marquee 30s linear infinite;
+#             }}
+#             .macro-item {{
+#                 display: inline-block;
+#                 padding: 0 30px;
+#                 font-size: 14px;
+#                 color: #31333F;
+#             }}
+#             @keyframes marquee {{
+#                 0% {{ transform: translateX(0); }}
+#                 100% {{ transform: translateX(-33.33%); }}
+#             }}
+#             </style>
+#             <div class="macro-marquee-container">
+#                 <div class="macro-marquee-track">
+#                     {marquee_content}
+#                 </div>
+#             </div>
+#             """,
+#             unsafe_allow_html=True,
+#         )
+
+
+# @st.cache_data(ttl=3600)
+def get_ticker_info(_symbol: str) -> dict:
+    """Fetch and cache ticker info from yfinance."""
+    ticker = yf.Ticker(_symbol)
+    return ticker.info
 
 
 @st.fragment
@@ -191,11 +241,11 @@ def financial_reports_sidebar_fragment(symbol: str) -> None:
     st.divider()
     st.subheader("📊 财务报表 (Financial Reports)")
 
-    ticker = yf.Ticker(symbol)
-
     try:
-        # 使用 .info 获取更详细的财务指标
-        info = ticker.info
+        # 使用缓存的函数获取更详细的财务指标
+        info = get_ticker_info(symbol)
+
+        # 定义要显示的指标映射 (Label: key_in_info)
 
         # 定义要显示的指标映射 (Label: key_in_info)
         metrics_map = {
@@ -240,10 +290,6 @@ def financial_reports_sidebar_fragment(symbol: str) -> None:
 
     except Exception as e:
         st.error(f"无法加载财务报表：{e}")
-
-    # 在财务报表下方显示宏观数据
-    st.divider()
-    macro_data_grid_fragment()
 
 
 @st.fragment
@@ -331,5 +377,48 @@ def news_sidebar_fragment(symbol: str) -> None:
                     f"{row['source']} | {row['datetime'].strftime('%Y-%m-%d')}"
                 )
                 st.link_button("查看全文", row["url"], icon="🔗")
+
+
+@st.fragment
+def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
+    """在右侧边栏显示 AI 智能分析报告"""
+    st.divider()
+    st.subheader("🤖 AI 智能推理")
+
+    if st.button("🚀 生成量化分析报告", key=f"ai_analyze_{symbol}"):
+        with st.spinner("AI 正在综合财务、新闻及宏观数据推理中..."):
+            try:
+                # 1. 准备技术指标数据
+                tech_data = hist if not hist.empty else None
+
+                # 2. 准备财务数据 (使用缓存函数)
+                info = get_ticker_info(symbol)
+                financial_data = {
+                    "ROE": info.get("returnOnEquity"),
+                    "D/E Ratio": info.get("debtToEquity"),
+                    "Profit Margin": info.get("profitMargins"),
+                    "Op. Margin": info.get("operatingMargins"),
+                    "Div. Yield": info.get("dividendYield"),
+                    "Trailing EPS": info.get("trailingEps"),
+                    "Forward EPS": info.get("forwardEps"),
+                }
+
+                # 3. 准备最新新闻摘要
+                news_df = fetch_and_analyze(symbol)
+
+                # 4. 准备宏观数据
+                macro_metrics = get_macro_metrics()
+
+                # 调用 LLM 管理器进行分析
+                analysis_result = llm_manager.analyze_symbol(
+                    symbol=symbol,
+                    technical_data=tech_data,
+                    financial_data=financial_data,
+                    news_data=news_df,
+                    macro_data=macro_metrics,
+                )
+                st.markdown(f"**分析结论：**\n\n{analysis_result}")
+            except Exception as e:
+                st.error(f"AI 分析失败：{e}")
     else:
-        st.info("暫無新聞")
+        st.info("点击按钮生成基于多维数据的 AI 推理结论")

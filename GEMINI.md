@@ -28,8 +28,8 @@ OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research
   - `analytics.py`: Technical indicator calculation pipeline using `pandas_ta`.
   - `strategies.py`: Signal identification (e.g., FVG, MACD, breakout patterns).
   - `chart_factory.py`: Plotly figure construction for charts and signals.
+  - `llm_manager.py`: LLM integration (Google Gemini) that implements a Chief Risk Officer (CRO) persona to perform survival stress tests on assets using VectorBT metrics, financial data, and news sentiment.
 - `ui/`:
-  - `common_layout.py`: Shared UI layout and styling.
   - `equity.py`, `indices.py`, `etf.py`, `future.py`: Asset-specific analysis pages.
   - `admin/`: Administrative tools (e.g., `asset_manager.py`).
   - `components/`: Reusable UI components (sidebar, tabs, fragments).
@@ -93,4 +93,4 @@ OpenQuantApp (also referred to as `quant-app`) is a modern quantitative research
 ## Project TODOs / Future Enhancements
 - Integration of `sqlite-vss` for semantic news search (vector embeddings).
 - Expanded technical indicator library in `analytics.py`.
-- More granular risk management features (drawdown alerts).
+- More granular risk management features (e.g., AI-powered drawdown alerts via CRO analysis).
