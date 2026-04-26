@@ -44,9 +44,10 @@ quant-app/
 ├── engine/
 │   ├── analytics.py        # AnalyticsEngine: technical indicators pipeline (pandas_ta)
 │   ├── strategies.py       # Signal identification (FVG, MACD, breakouts)
-│   └── chart_factory.py    # Plotly chart builder
+│   ├── chart_factory.py    # Plotly chart builder
+│   ├── macro_manager.py    # Macroeconomic data integration (FRED API)
+│   └── llm_manager.py      # LLM integration for risk analysis (Gemini)
 ├── ui/
-│   ├── common_layout.py    # Shared UI layout and styling
 │   ├── equity.py           # Equity analysis page
 │   ├── indices.py          # Indices analysis page
 │   ├── etf.py              # ETF analysis page
@@ -59,7 +60,8 @@ quant-app/
 ├── utils/
 │   └── human_readable.py   # Formatting utilities for financial data
 ├── tools/
-│   └── cron.py             # Automation tools (Cron/Scheduler)
+│   ├── cron.py             # Automation tools (Cron/Scheduler)
+│   └── telegram_bot.py     # UI for managing Telegram notifications
 ├── notifier/
 │   └── tg.py               # Telegram bot integration
 └── migrations/             # Database migrations
@@ -70,7 +72,10 @@ quant-app/
 - **DataSyncEngine** (`sync_engine.py`): Fetches OHLCV data from yfinance and stores in ArcticDB with libraries for different timeframes (1m, 1h, daily)
 - **AnalyticsEngine** (`engine/analytics.py`): Pipeline for computing technical indicators (RSI, MACD, Bollinger Bands, RVOL) using pandas_ta
 - **ChartFactory** (`engine/chart_factory.py`): Builds Plotly figures with candlestick charts, signal markers, and indicator subplots
+- **MacroManager** (`engine/macro_manager.py`): Fetches macroeconomic indicators from FRED API using a thread pool
+- **LLMManager** (`engine/llm_manager.py`): Integrates Gemini LLM to perform CRO-style risk analysis on assets, leveraging VectorBT metrics
 - **TelegramNotifier** (`notifier/tg.py`): Sends alerts for RSI oversold/overbought conditions, breakout signals, and drawdown warnings
+- **Telegram Bot UI** (`tools/telegram_bot.py`): Streamlit interface to test notifications and manage RSI scan schedules
 - **DatabaseManager** (`database/manager.py`): SQLModel-based database operations for metadata
 - **MarketManager** (`api/market_manager.py`): Market data retrieval and processing
 
