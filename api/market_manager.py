@@ -1,23 +1,182 @@
 import datetime
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Any
 
 import ccxt
 import pandas as pd
 import yfinance as yf
 
+LOG_DIR = Path(__file__).parent.parent / "logs"
+LOG_DIR.mkdir(exist_ok=True)
+LOG_FILE = LOG_DIR / "market_data.log"
+
+logger = logging.getLogger("market-data")
+logger.setLevel(logging.INFO)
+logger.propagate = False
+if not logger.handlers:
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    file_handler = logging.FileHandler(LOG_FILE, encoding="utf-8")
+    file_handler.setFormatter(formatter)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+
+
+class MarketDataError(RuntimeError):
+    """Raised when a market data provider cannot return valid data."""
+
 
 class MarketDataManager:
-    def __init__(self, crypto_exchange: str = "binance"):
-        """
-        初始化数据管理器。
-        :param crypto_exchange: ccxt 支持的交易所 ID (例如: 'binance', 'okx', 'kraken')
-        """
-        # 动态初始化 ccxt 交易所实例
+    """Fetch and normalize public OHLCV data from yfinance or CCXT."""
+
+    _YFINANCE_ASSET_TYPES = {
+        "equity",
+        "etf",
+        "index",
+        "currency",
+        "futures",
+        "option",
+        "mutual fund",
+    }
+    _TIMEFRAME_MAP = {
+        "1m": "1m",
+        "1h": "1h",
+        "1d": "1d",
+        "D": "1d",
+    }
+
+    def __init__(
+        self,
+        crypto_exchange: str = "binance",
+        market_type: str = "spot",
+        exchange_instance: Any | None = None,
+        max_pages: int = 500,
+        max_retries: int = 3,
+    ):
+        self.exchange_id = crypto_exchange.lower()
+        self.market_type = market_type.lower()
+        self.max_pages = max_pages
+        self.max_retries = max_retries
+        self._exchange = exchange_instance
+
+        if self.market_type != "spot":
+            raise ValueError("第一阶段仅支持 CCXT 现货市场")
+
+    @property
+    def crypto_exchange(self):
+        """Lazily create one exchange instance so its rate limiter is reused."""
+        if self._exchange is None:
+            if self.exchange_id not in ccxt.exchanges:
+                raise ValueError(f"ccxt 不支持该交易所: {self.exchange_id}")
+            exchange_class = getattr(ccxt, self.exchange_id)
+            self._exchange = exchange_class(
+                {
+                    "enableRateLimit": True,
+                    "timeout": 20_000,
+                    # CCXT defaults this to False. Enable the user's
+                    # HTTP(S)_PROXY environment (for example ClashX).
+                    "requests_trust_env": True,
+                    "options": {
+                        "defaultType": self.market_type,
+                        # CCXT otherwise loads derivatives endpoints too.
+                        "fetchMarkets": {"types": [self.market_type]},
+                    },
+                }
+            )
+        return self._exchange
+
+    @classmethod
+    def _normalize_timeframe(cls, timeframe: str) -> str:
         try:
-            exchange_class = getattr(ccxt, crypto_exchange)
-            # 开启 rate limit 以防触发交易所反爬策略
-            self.crypto_exchange = exchange_class({"enableRateLimit": True})
-        except AttributeError:
-            raise ValueError(f"ccxt 不支持该交易所: {crypto_exchange}")
+            return cls._TIMEFRAME_MAP[timeframe]
+        except KeyError as exc:
+            supported = ", ".join(cls._TIMEFRAME_MAP)
+            raise ValueError(
+                f"不支持的周期 {timeframe!r}，可用周期: {supported}"
+            ) from exc
+
+    @staticmethod
+    def _to_utc(value: datetime.datetime) -> datetime.datetime:
+        timestamp = pd.Timestamp(value)
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.tz_localize("UTC")
+        else:
+            timestamp = timestamp.tz_convert("UTC")
+        return timestamp.to_pydatetime()
+
+    def inspect_crypto_market(self, symbol: str) -> dict[str, Any]:
+        """Validate a public spot market and return normalized metadata."""
+        exchange = self.crypto_exchange
+        started_at = time.monotonic()
+        proxy_enabled = any(
+            os.environ.get(name)
+            for name in (
+                "HTTP_PROXY",
+                "HTTPS_PROXY",
+                "ALL_PROXY",
+                "http_proxy",
+                "https_proxy",
+                "all_proxy",
+            )
+        )
+        logger.info(
+            "Loading markets exchange=%s type=%s symbol=%s proxy=%s",
+            self.exchange_id,
+            self.market_type,
+            symbol.upper(),
+            "configured" if proxy_enabled else "not-configured",
+        )
+        try:
+            markets = exchange.load_markets()
+        except ccxt.BaseError as exc:
+            logger.exception(
+                "Market loading failed exchange=%s error_type=%s",
+                self.exchange_id,
+                type(exc).__name__,
+            )
+            raise MarketDataError(
+                f"{self.exchange_id} 市场列表加载失败"
+                f" ({type(exc).__name__}): {exc}"
+            ) from exc
+
+        market = markets.get(symbol.upper())
+        if market is None:
+            logger.warning(
+                "Spot symbol not found exchange=%s symbol=%s",
+                self.exchange_id,
+                symbol.upper(),
+            )
+            raise ValueError(
+                f"{self.exchange_id} 不存在现货交易对 {symbol.upper()}"
+            )
+        if not market.get("spot", market.get("type") == "spot"):
+            logger.warning(
+                "Non-spot symbol rejected exchange=%s symbol=%s",
+                self.exchange_id,
+                symbol.upper(),
+            )
+            raise ValueError(f"{symbol.upper()} 不是现货交易对")
+
+        logger.info(
+            "Markets loaded exchange=%s count=%s elapsed=%.3fs",
+            self.exchange_id,
+            len(markets),
+            time.monotonic() - started_at,
+        )
+        return {
+            "symbol": market["symbol"],
+            "name": f"{market['base']}/{market['quote']}",
+            "asset_type": "Crypto",
+            "exchange": self.exchange_id,
+            "market_type": "spot",
+            "currency": market["quote"],
+        }
 
     def fetch_data(
         self,
@@ -26,19 +185,44 @@ class MarketDataManager:
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         timeframe: str = "1d",
+        exclude_incomplete: bool = True,
     ) -> pd.DataFrame:
-        """
-        统一的数据获取接口。无论底层是 yfinance 还是 ccxt，
-        都返回带有 DatetimeIndex (UTC时区) 且列名为 [Open, High, Low, Close, Volume] 的标准化 DataFrame。
-        """
-        asset_type = asset_type.lower()
+        """Return UTC-indexed OHLCV columns for all supported providers."""
+        start_date = self._to_utc(start_date)
+        end_date = self._to_utc(end_date)
+        if start_date >= end_date:
+            raise ValueError("start_date 必须早于 end_date")
 
+        interval = self._normalize_timeframe(timeframe)
+        asset_type = asset_type.lower()
         if asset_type == "crypto":
-            return self._fetch_crypto(symbol, start_date, end_date, timeframe)
-        elif asset_type in ["equity", "etf", "index"]:
-            return self._fetch_tradfi(symbol, start_date, end_date, timeframe)
-        else:
-            raise ValueError(f"不支持的资产类型: {asset_type}")
+            logger.info(
+                "Fetching OHLCV exchange=%s symbol=%s timeframe=%s "
+                "start=%s end=%s",
+                self.exchange_id,
+                symbol,
+                interval,
+                start_date.isoformat(),
+                end_date.isoformat(),
+            )
+            frame = self._fetch_crypto(
+                symbol,
+                start_date,
+                end_date,
+                interval,
+                exclude_incomplete=exclude_incomplete,
+            )
+            logger.info(
+                "OHLCV fetched exchange=%s symbol=%s timeframe=%s rows=%s",
+                self.exchange_id,
+                symbol,
+                interval,
+                len(frame),
+            )
+            return frame
+        if asset_type in self._YFINANCE_ASSET_TYPES:
+            return self._fetch_tradfi(symbol, start_date, end_date, interval)
+        raise ValueError(f"不支持的资产类型: {asset_type}")
 
     def _fetch_tradfi(
         self,
@@ -47,34 +231,32 @@ class MarketDataManager:
         end_date: datetime.datetime,
         timeframe: str,
     ) -> pd.DataFrame:
-        """
-        使用 yfinance 获取传统金融数据 (股票、ETF、指数)
-        """
-        # 统一下游传入的周期与 yfinance 内部周期的映射
-        yf_interval_map = {"1m": "1m", "1h": "1h", "1d": "1d", "D": "1d"}
-        interval = yf_interval_map.get(timeframe, "1d")
-
         ticker = yf.Ticker(symbol)
         df = ticker.history(
             start=start_date,
             end=end_date,
-            interval=interval,
+            interval=timeframe,
             auto_adjust=False,
         )
-
         if df.empty:
-            return df
+            return self._empty_frame()
 
-        # 标准化 1: 仅保留核心的 OHLCV 列
-        df = df[["Open", "High", "Low", "Close", "Volume"]]
+        required = ["Open", "High", "Low", "Close", "Volume"]
+        missing = set(required).difference(df.columns)
+        if missing:
+            raise MarketDataError(
+                f"Yahoo Finance 返回缺少字段: {sorted(missing)}"
+            )
 
-        # 标准化 2: 统一时区到 UTC (传统金融时区可能因交易所而异)
-        if df.index.tz is not None:
-            df.index = df.index.tz_convert(datetime.timezone.utc)
-        else:
-            df.index = df.index.tz_localize(datetime.timezone.utc)
-
-        return df
+        optional = [
+            column
+            for column in ("Adj Close", "Dividends", "Stock Splits")
+            if column in df.columns
+        ]
+        df = df[required + optional].copy()
+        df.index = pd.to_datetime(df.index, utc=True)
+        df.index.name = "Datetime"
+        return self._clean_frame(df, start_date, end_date)
 
     def _fetch_crypto(
         self,
@@ -82,67 +264,124 @@ class MarketDataManager:
         start_date: datetime.datetime,
         end_date: datetime.datetime,
         timeframe: str,
+        exclude_incomplete: bool,
     ) -> pd.DataFrame:
-        """
-        使用 ccxt 获取加密货币数据，内置了自动分页逻辑以应对长周期数据的获取
-        """
-        # 统一下游传入的周期与 ccxt 内部周期的映射
-        ccxt_interval_map = {"1m": "1m", "1h": "1h", "1d": "1d", "D": "1d"}
-        interval = ccxt_interval_map.get(timeframe, "1d")
+        exchange = self.crypto_exchange
+        market = self.inspect_crypto_market(symbol)
 
-        # ccxt 要求的时间戳是毫秒级的 UTC Unix Timestamp
-        if start_date.tzinfo is None:
-            start_date = start_date.replace(tzinfo=datetime.timezone.utc)
+        if not exchange.has.get("fetchOHLCV"):
+            raise MarketDataError(f"{self.exchange_id} 不支持 fetch_ohlcv")
+        if exchange.timeframes and timeframe not in exchange.timeframes:
+            raise ValueError(f"{self.exchange_id} 不支持 {timeframe} K 线")
+
         since_ms = int(start_date.timestamp() * 1000)
-
-        if end_date.tzinfo is None:
-            end_date = end_date.replace(tzinfo=datetime.timezone.utc)
         end_ms = int(end_date.timestamp() * 1000)
+        timeframe_ms = int(exchange.parse_timeframe(timeframe) * 1000)
+        rows: list[list[float]] = []
 
-        all_ohlcv = []
-
-        # CCXT 单次请求通常有 limit 限制 (例如 500 或 1000)，我们需要循环分页拉取
-        while True:
-            try:
-                ohlcv = self.crypto_exchange.fetch_ohlcv(
-                    symbol, timeframe=interval, since=since_ms, limit=1000
-                )
-
-                if not ohlcv:
-                    break
-
-                all_ohlcv.extend(ohlcv)
-
-                # 获取本次请求的最后一条数据的时间戳
-                last_timestamp = ohlcv[-1][0]
-
-                # 如果最后一条数据已经到达或超过了我们需要的结束时间，跳出循环
-                if last_timestamp >= end_ms:
-                    break
-
-                # 将下一次请求的起点设为最后一条时间戳 + 1 毫秒
-                since_ms = last_timestamp + 1
-
-            except Exception as e:
-                # 生产环境中建议使用 logging 代替 print
-                print(f"CCXT 获取 {symbol} 数据时出错: {e}")
+        for _ in range(self.max_pages):
+            page = self._fetch_ohlcv_page(
+                market["symbol"], timeframe, since_ms
+            )
+            if not page:
                 break
 
-        if not all_ohlcv:
-            return pd.DataFrame()
+            last_timestamp = int(page[-1][0])
+            if last_timestamp < since_ms:
+                raise MarketDataError(
+                    "CCXT 分页时间戳没有前进，已停止以避免死循环"
+                )
 
-        # 转换为 DataFrame
+            rows.extend(page)
+            if last_timestamp >= end_ms:
+                break
+            since_ms = last_timestamp + 1
+        else:
+            raise MarketDataError(f"CCXT 分页超过上限 {self.max_pages} 页")
+
+        if not rows:
+            return self._empty_frame()
+
         df = pd.DataFrame(
-            all_ohlcv,
+            rows,
             columns=["Timestamp", "Open", "High", "Low", "Close", "Volume"],
         )
-
-        # 标准化: 将毫秒时间戳转为 UTC 的 DatetimeIndex
-        df["Datetime"] = pd.to_datetime(df["Timestamp"], unit="ms", utc=True)
+        df["Datetime"] = pd.to_datetime(
+            df.pop("Timestamp"), unit="ms", utc=True
+        )
         df.set_index("Datetime", inplace=True)
-        df.drop(columns=["Timestamp"], inplace=True)
 
-        # 过滤掉超出 end_date 范围的数据（因为批量拉取可能会多拉出几根 K 线）
-        df = df[df.index <= end_date]
+        if exclude_incomplete:
+            now_ms = int(exchange.milliseconds())
+            closed_before_ms = min(end_ms, now_ms)
+            close_times = df.index.view("int64") // 1_000_000 + timeframe_ms
+            df = df[close_times <= closed_before_ms]
 
-        return df
+        return self._clean_frame(df, start_date, end_date)
+
+    def _fetch_ohlcv_page(
+        self, symbol: str, timeframe: str, since_ms: int
+    ) -> list[list[float]]:
+        for attempt in range(self.max_retries + 1):
+            try:
+                return self.crypto_exchange.fetch_ohlcv(
+                    symbol,
+                    timeframe=timeframe,
+                    since=since_ms,
+                    limit=1000,
+                )
+            except (
+                ccxt.NetworkError,
+                ccxt.RequestTimeout,
+                ccxt.RateLimitExceeded,
+            ) as exc:
+                if attempt >= self.max_retries:
+                    logger.exception(
+                        "OHLCV retries exhausted exchange=%s symbol=%s "
+                        "timeframe=%s error_type=%s",
+                        self.exchange_id,
+                        symbol,
+                        timeframe,
+                        type(exc).__name__,
+                    )
+                    raise MarketDataError(
+                        f"CCXT 网络请求重试失败: {exc}"
+                    ) from exc
+                logger.warning(
+                    "Retrying OHLCV exchange=%s symbol=%s timeframe=%s "
+                    "attempt=%s error_type=%s",
+                    self.exchange_id,
+                    symbol,
+                    timeframe,
+                    attempt + 1,
+                    type(exc).__name__,
+                )
+                time.sleep(min(2**attempt, 8))
+            except ccxt.BaseError as exc:
+                logger.exception(
+                    "OHLCV request failed exchange=%s symbol=%s "
+                    "timeframe=%s error_type=%s",
+                    self.exchange_id,
+                    symbol,
+                    timeframe,
+                    type(exc).__name__,
+                )
+                raise MarketDataError(f"CCXT 请求失败: {exc}") from exc
+        return []
+
+    @staticmethod
+    def _empty_frame() -> pd.DataFrame:
+        frame = pd.DataFrame(
+            columns=["Open", "High", "Low", "Close", "Volume"]
+        )
+        frame.index = pd.DatetimeIndex([], tz="UTC", name="Datetime")
+        return frame
+
+    @staticmethod
+    def _clean_frame(
+        df: pd.DataFrame,
+        start_date: datetime.datetime,
+        end_date: datetime.datetime,
+    ) -> pd.DataFrame:
+        df = df[~df.index.duplicated(keep="last")].sort_index()
+        return df.loc[(df.index >= start_date) & (df.index <= end_date)]

@@ -4,7 +4,8 @@ import threading
 import pandas as pd  # noqa
 import streamlit as st
 from llama_index.core import Settings
-from llama_index.llms.google_genai import GoogleGenAI
+
+from engine.llm_provider import LLMConfig, create_llm
 
 logger = logging.getLogger(__name__)
 
@@ -28,25 +29,17 @@ class LLMManager:
 
     def _initialize_llm(self):
         try:
-            # 优先从 secrets 读取，增加默认值保护
-            gemini_config = st.secrets.get("gemini", {})
-            api_key = gemini_config.get("api_key")
-            model_name = gemini_config.get(
-                "model", "gemma-4-26b-a4b-it"
-            )  # 建议使用最新模型名称
-
-            if not api_key:
-                raise ValueError("Gemini API key is missing in secrets.")
-
-            self.llm = GoogleGenAI(
-                api_key=api_key,
-                model=model_name,
-                temperature=0.2,  # 量化分析建议更低的随机性
-            )
+            self.config = LLMConfig.from_secrets(st.secrets)
+            self.llm = create_llm(self.config)
             Settings.llm = self.llm
-            logger.info(f"Gemini LLM ({model_name}) initialized.")
+            logger.info(
+                "%s LLM (%s) initialized.",
+                self.config.provider,
+                self.config.model,
+            )
         except Exception as e:
             logger.error(f"Initialization failed: {e}")
+            self.config = None
             self.llm = None
 
     # def get_vbt_analysis(self, technical_data) -> dict:

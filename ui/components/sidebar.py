@@ -46,8 +46,12 @@ def render_common_sidebar(asset_type="equity") -> dict:
         )
 
         # 3. 技術參數
-        tf_display = ["日线", "周线", "月线"]
-        tf_keys = ["D", "W", "M"]
+        if asset_type.lower() == "crypto":
+            tf_display = ["1小时", "日线"]
+            tf_keys = ["1h", "D"]
+        else:
+            tf_display = ["日线", "周线", "月线"]
+            tf_keys = ["D", "W", "M"]
         tf_selection = st.select_slider(
             "TimeFrame", options=tf_display, value="日线"
         )

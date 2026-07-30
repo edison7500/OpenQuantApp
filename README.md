@@ -7,7 +7,8 @@
 - ⚡️ **极速环境管理**: 使用 `uv` 替代 pip，实现秒级的依赖安装与环境锁定
 - 🗄️ **高性能时序存储**: 采用 ArcticDB，专为 Pandas 优化的 C++ 底层存储，轻松处理百万级数据
 - 🤖 **无人值守同步**: 集成 APScheduler，支持多时间尺度（1m/1h/Daily）的增量数据抓取与自动重采样
-- 🧠 **AI 深度分析**: 集成 Google Gemini LLM，扮演首席风险官 (CRO) 角色，基于量化指标进行生存能力压力测试
+- 🪙 **Crypto 公共行情**: 通过 CCXT 接入 Binance/OKX 现货 1h 与 Daily OHLCV，无需 API Key
+- 🧠 **AI 深度分析**: 支持 Gemini、OpenAI 及 OpenAI 兼容 LLM，扮演首席风险官 (CRO) 角色，基于量化指标进行生存能力压力测试
 - 📈 **深度技术分析**: 基于 `pandas_ta` 计算 RSI、RVOL（相对成交量）及爆量突破信号
 - 📱 **实时风险预警**: 通过 Telegram Bot 推送超买超卖、爆量突破及最大回撤（Drawdown）预警
 - 🐳 **Docker 支持**: 一键容器化部署，开箱即用
@@ -17,7 +18,7 @@
 ```.shell
 quant-app/
 ├── app.py              # Main Streamlit entry point (navigation)
-├── sync_engine.py      # Data synchronization engine (yfinance -> ArcticDB)
+├── sync_engine.py      # Data synchronization engine (yfinance/CCXT -> ArcticDB)
 ├── config.py           # Financial formatting configuration
 ├── db_manage.py        # CLI tool for metadata database management
 ├── database/           # Database layer
@@ -32,6 +33,7 @@ quant-app/
 │   └── chart_factory.py # Plotly chart builder
 ├── ui/                 # Streamlit UI layer
 │   ├── equity.py       # Equity analysis page
+│   ├── crypto.py       # CCXT spot crypto analysis page
 │   ├── indices.py      # Indices analysis page
 │   ├── etf.py          # ETF analysis page
 │   ├── future.py       # Futures analysis page
@@ -78,9 +80,54 @@ uv sync
 token = "YOUR_BOT_TOKEN"
 chat_id = "YOUR_CHAT_ID"
 
+[llm]
+provider = "gemini"
+model = "gemini-3-flash-preview"
+api_key = "YOUR_LLM_API_KEY"
+temperature = 0.2
+
 [connections.arcticdb]
 uri = "lmdb://./data/stock_db"
 ```
+
+`[llm]` 使用统一字段，通过 `provider` 切换模型服务：
+
+```toml
+# OpenAI
+[llm]
+provider = "openai"
+model = "YOUR_OPENAI_MODEL"
+api_key = "YOUR_OPENAI_API_KEY"
+temperature = 0.2
+
+# DeepSeek、通义等 OpenAI 兼容服务
+[llm]
+provider = "openai_compatible"
+model = "YOUR_MODEL_NAME"
+api_key = "YOUR_API_KEY"
+api_base = "https://YOUR_ENDPOINT/v1"
+context_window = 128000
+temperature = 0.2
+```
+
+Ollama 使用原生接口，本地运行时不需要 API Key：
+
+```toml
+[llm]
+provider = "ollama"
+model = "qwen3:8b"
+api_base = "http://localhost:11434" # 可省略
+timeout = 180
+context_window = 32768
+temperature = 0.2
+```
+
+如果应用运行在 Docker 容器中而 Ollama 运行在宿主机，请将 `api_base`
+设置为 `http://host.docker.internal:11434`。连接需要认证的远程 Ollama
+服务时，可额外配置 `api_key`，它会作为 Bearer Token 发送。
+
+可选字段包括 `max_tokens`、`timeout` 和 `context_window`。原有
+`[gemini]` 配置仍然兼容，但建议迁移到统一的 `[llm]` 格式。
 
 ### 4. 启动应用
 
