@@ -1,4 +1,7 @@
+from unittest.mock import patch
+
 from engine.llm_manager import LLMManager
+from engine.llm_provider import LLMConfig
 
 
 def test_analysis_prompt_is_balanced_and_evidence_driven():
@@ -23,3 +26,30 @@ def test_analysis_prompt_includes_symbol_and_context():
 
     assert "AAPL" in prompt
     assert context in prompt
+
+
+def test_refreshes_llm_after_secrets_change():
+    manager = object.__new__(LLMManager)
+    manager.config = LLMConfig("gemini", "old-model", "old-key")
+    manager.llm = object()
+    new_config = LLMConfig(
+        "ollama",
+        "gemma4:31b-cloud",
+        "new-key",
+        api_base="https://ollama.com",
+    )
+    new_llm = object()
+
+    with (
+        patch(
+            "engine.llm_manager.LLMConfig.from_secrets",
+            return_value=new_config,
+        ),
+        patch("engine.llm_manager.create_llm", return_value=new_llm),
+        patch("engine.llm_manager.Settings") as settings,
+    ):
+        manager._refresh_llm_if_needed()
+
+    assert manager.config == new_config
+    assert manager.llm is new_llm
+    assert settings.llm is new_llm

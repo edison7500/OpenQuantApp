@@ -27,9 +27,9 @@ class LLMManager:
         self._initialize_llm()
         self._initialized = True
 
-    def _initialize_llm(self):
+    def _initialize_llm(self, config: LLMConfig | None = None):
         try:
-            self.config = LLMConfig.from_secrets(st.secrets)
+            self.config = config or LLMConfig.from_secrets(st.secrets)
             self.llm = create_llm(self.config)
             Settings.llm = self.llm
             logger.info(
@@ -41,6 +41,21 @@ class LLMManager:
             logger.error(f"Initialization failed: {e}")
             self.config = None
             self.llm = None
+
+    def _refresh_llm_if_needed(self) -> None:
+        """配置变更后无需重启 Streamlit 即可切换 LLM。"""
+        try:
+            current_config = LLMConfig.from_secrets(st.secrets)
+        except Exception as e:
+            logger.error("Invalid LLM configuration: %s", e)
+            return
+
+        if current_config == self.config and self.llm is not None:
+            return
+
+        with self._lock:
+            if current_config != self.config or self.llm is None:
+                self._initialize_llm(current_config)
 
     # def get_vbt_analysis(self, technical_data) -> dict:
     #     """利用 vectorbt 分析资产的风险指标"""
@@ -238,6 +253,7 @@ class LLMManager:
     # @st.cache_data(show_spinner="AI 正在分析数据，请稍候...")
     def analyze_symbol(self, symbol: str, **data_kwargs):
         """增加缓存机制，避免相同数据的重复 API 调用"""
+        self._refresh_llm_if_needed()
         if not self.llm:
             return "❌ AI 模块未就绪，请检查 API 配置。"
 
@@ -252,6 +268,7 @@ class LLMManager:
         return self.complete(prompt)
 
     def stream_complete(self, prompt: str, **kwargs):
+        self._refresh_llm_if_needed()
         try:
             response = self.llm.stream_complete(prompt, **kwargs)
             for token in response:
@@ -261,6 +278,7 @@ class LLMManager:
             yield f"分析调用失败: {str(e)}"
 
     def complete(self, prompt: str, **kwargs) -> str:
+        self._refresh_llm_if_needed()
         try:
             # 使用 stream=False 确保返回完整字符串，或者根据需求改为 stream=True
             response = self.llm.complete(prompt, **kwargs)

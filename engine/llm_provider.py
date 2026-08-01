@@ -4,8 +4,13 @@ The application uses LlamaIndex's common LLM interface, so callers do not need
 to know which provider is selected.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Mapping
+from urllib.parse import urlparse
+
+
+logger = logging.getLogger(__name__)
 
 
 class LLMConfigurationError(ValueError):
@@ -99,6 +104,27 @@ def _optional_int(value: Any) -> int | None:
     return int(value)
 
 
+def _ollama_model_for_host(model: str, api_base: str | None) -> str:
+    """Translate local cloud aliases for Ollama's direct cloud API.
+
+    A local Ollama daemon uses names such as ``model:tag-cloud`` to offload a
+    request. The direct ``ollama.com`` API exposes the same model without the
+    ``-cloud`` suffix.
+    """
+    hostname = urlparse(api_base or "").hostname
+    if hostname in {"ollama.com", "www.ollama.com"} and model.endswith(
+        "-cloud"
+    ):
+        normalized_model = model.removesuffix("-cloud")
+        logger.info(
+            "Using Ollama direct-cloud model %s for configured alias %s.",
+            normalized_model,
+            model,
+        )
+        return normalized_model
+    return model
+
+
 def create_llm(config: LLMConfig):
     """Construct a LlamaIndex LLM for the selected provider."""
     common_kwargs = {
@@ -138,7 +164,7 @@ def create_llm(config: LLMConfig):
         from llama_index.llms.ollama import Ollama
 
         ollama_kwargs = {
-            "model": config.model,
+            "model": _ollama_model_for_host(config.model, config.api_base),
             "base_url": config.api_base,
             "temperature": config.temperature,
             "request_timeout": config.timeout,

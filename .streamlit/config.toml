@@ -27,3 +27,11 @@ gatherUsageStats = false
 
 [runner]
 enforceSerializableSessionState = true
+
+# [llm]
+# provider = "ollama"
+# model = "gemma4:31b-cloud"
+# api_base = "https://ollama.com" # 可省略
+# timeout = 180
+# context_window = 32768
+# temperature = 0.2

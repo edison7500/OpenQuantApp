@@ -5,6 +5,7 @@ import pytest
 from engine.llm_provider import (
     LLMConfig,
     LLMConfigurationError,
+    _ollama_model_for_host,
     create_llm,
 )
 
@@ -63,6 +64,25 @@ def test_ollama_does_not_require_api_key():
     assert config.provider == "ollama"
     assert config.api_key is None
     assert config.api_base == "http://localhost:11434"
+
+
+@pytest.mark.parametrize(
+    ("model", "api_base", "expected"),
+    [
+        ("gemma4:31b-cloud", "https://ollama.com", "gemma4:31b"),
+        ("gemma4:31b-cloud", "https://www.ollama.com/", "gemma4:31b"),
+        (
+            "gemma4:31b-cloud",
+            "http://localhost:11434",
+            "gemma4:31b-cloud",
+        ),
+        ("gemma4:31b", "https://ollama.com", "gemma4:31b"),
+    ],
+)
+def test_normalizes_ollama_cloud_model_for_direct_api(
+    model, api_base, expected
+):
+    assert _ollama_model_for_host(model, api_base) == expected
 
 
 @pytest.mark.parametrize(
@@ -150,3 +170,17 @@ def test_factory_constructs_ollama():
         additional_kwargs={"num_predict": 4096},
         headers={"Authorization": "Bearer ollama-cloud-key"},
     )
+
+
+def test_factory_normalizes_direct_ollama_cloud_alias():
+    config = LLMConfig(
+        "ollama",
+        "gemma4:31b-cloud",
+        "ollama-cloud-key",
+        api_base="https://ollama.com",
+    )
+
+    with patch("llama_index.llms.ollama.Ollama") as ollama:
+        create_llm(config)
+
+    assert ollama.call_args.kwargs["model"] == "gemma4:31b"
