@@ -14,6 +14,7 @@ class SymbolMeta(SQLModel, table=True):
     sector: Optional[str] = None  # 板块
     industry: Optional[str] = None  # 行业
     exchange: Optional[str] = None  # 交易所
+    market_type: Optional[str] = None  # CCXT 市场类型，第一阶段为 spot
     is_active: bool = Field(default=True)
     currency: Optional[str] = None
     updated_at: datetime = Field(default_factory=datetime.now)

@@ -379,13 +379,23 @@ def news_sidebar_fragment(symbol: str) -> None:
                 st.link_button("查看全文", row["url"], icon="🔗")
 
 
-@st.fragment
 def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
-    """在右侧边栏显示 AI 智能分析报告"""
+    """在右侧边栏显示 AI 智能分析报告。
+
+    LLM 请求可能持续数分钟，因此不在 Streamlit fragment 内执行，
+    避免整页 rerun 后旧 fragment 被注销。
+    """
     st.divider()
     st.subheader("🤖 AI 智能推理")
 
-    if st.button("🚀 生成量化分析报告", key=f"ai_analyze_{symbol}"):
+    result_key = f"ai_analysis_result_{symbol}"
+    button_label = (
+        "🔄 重新生成量化分析报告"
+        if result_key in st.session_state
+        else "🚀 生成量化分析报告"
+    )
+
+    if st.button(button_label, key=f"ai_analyze_{symbol}"):
         with st.spinner("AI 正在综合财务、新闻及宏观数据推理中..."):
             try:
                 # 1. 准备技术指标数据
@@ -417,8 +427,11 @@ def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
                     news_data=news_df,
                     macro_data=macro_metrics,
                 )
-                st.markdown(f"**分析结论：**\n\n{analysis_result}")
+                st.session_state[result_key] = analysis_result
             except Exception as e:
-                st.error(f"AI 分析失败：{e}")
+                st.session_state[result_key] = f"❌ AI 分析失败：{e}"
+
+    if result_key in st.session_state:
+        st.markdown(f"**分析结论：**\n\n{st.session_state[result_key]}")
     else:
         st.info("点击按钮生成基于多维数据的 AI 推理结论")

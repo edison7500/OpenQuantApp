@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from notifier.tg import TelegramNotifier
 
 from database.connections.arcticdb_conn import ArcticDBConnection
-from database.resource import get_symbols
+from database.manager import DatabaseManager
 from sync_engine import DataSyncEngine
 
 load_dotenv()
@@ -53,20 +53,23 @@ def get_scheduler():
 def daily_sync_job():
     logger.info("开始执行每日自动同步任务")
     engine = DataSyncEngine()
-    symbols = get_symbols(asset_type=None)
-    logger.info(f"待同步标的数量：{len(symbols)}")
+    symbol_metas = DatabaseManager().get_active_symbolmetas() or []
+    logger.info(f"待同步标的数量：{len(symbol_metas)}")
 
     success_count = 0
-    for sym in symbols:
+    for meta in symbol_metas:
         try:
-            logger.info(f"正在同步：{sym}")
-            engine.sync_symbol(sym)
+            logger.info(f"正在同步：{meta.symbol}")
+            rows = engine.sync_symbol(meta)
+            logger.info(f"同步完成：{meta.symbol}，写入 {rows} 行")
             success_count += 1
         except Exception as e:
-            logger.error(f"同步失败 {sym}: {e}")
+            logger.exception(f"同步失败 {meta.symbol}: {e}")
         time.sleep(1)
 
-    logger.info(f"自动同步任务完成 - 成功：{success_count}/{len(symbols)}")
+    logger.info(
+        f"自动同步任务完成 - 成功：{success_count}/{len(symbol_metas)}"
+    )
 
 
 def daily_sync_and_scan_job():
@@ -159,12 +162,12 @@ def main():
     st.markdown("""
     ### 功能说明
 
-    **自动化行情同步系统** 负责从 yfinance 抓取数据并同步到 ArcticDB。
+    **自动化行情同步系统** 负责从 yfinance 或 CCXT 公开接口抓取数据并同步到 ArcticDB。
 
     #### 工作流程：
-    1. 从 yfinance 获取 OHLCV 数据
-    2. 存储到 ArcticDB 时序数据库
-    3. 支持 1m/1h/Daily 多时间尺度
+    1. 传统资产从 yfinance 获取日线 OHLCV
+    2. Crypto 现货从 CCXT 获取 1h/Daily OHLCV
+    3. 存储到 ArcticDB 时序数据库
     4. 增量更新，避免重复抓取
 
     > 💡 **提示**: Telegram 通知功能已拆分至独立页面，请运行 `streamlit run tools/telegram_bot.py` 访问。

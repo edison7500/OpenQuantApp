@@ -3,6 +3,7 @@ from datetime import datetime
 import streamlit as st
 import yfinance as yf
 
+from api.market_manager import LOG_FILE, MarketDataManager
 from database.manager import DatabaseManager
 from database.models import SymbolMeta
 
@@ -26,10 +27,26 @@ def main():
         if "pending_asset" not in st.session_state:
             st.session_state.pending_asset = None
 
+        asset_source = st.radio(
+            "数据源",
+            options=["Yahoo Finance", "CCXT Crypto"],
+            horizontal=True,
+        )
+        is_crypto = asset_source == "CCXT Crypto"
+        crypto_exchange = None
+        if is_crypto:
+            crypto_exchange = st.selectbox(
+                "交易所",
+                options=["binance", "okx"],
+                help="第一阶段仅使用公开现货行情，不需要 API Key。",
+            )
+
         symbol_input = (
             st.text_input(
                 "代码 (Symbol)",
-                placeholder="例如：AAPL, QQQ, SPY",
+                placeholder=(
+                    "例如：BTC/USDT" if is_crypto else "例如：AAPL, QQQ, SPY"
+                ),
                 key="symbol_input",
             )
             .strip()
@@ -42,17 +59,33 @@ def main():
                 if not symbol_input:
                     st.error("请输入资产代码")
                 else:
-                    with st.spinner("正在从 Yahoo Finance 获取信息..."):
+                    provider_name = (
+                        f"CCXT {crypto_exchange}"
+                        if is_crypto
+                        else "Yahoo Finance"
+                    )
+                    with st.spinner(f"正在从 {provider_name} 获取信息..."):
                         try:
-                            ticker = yf.Ticker(symbol_input)
-                            info = ticker.info
-
-                            if not info:
-                                st.error(
-                                    "无法获取该资产信息，请检查代码是否正确"
+                            if is_crypto:
+                                manager = MarketDataManager(
+                                    crypto_exchange=crypto_exchange,
+                                    market_type="spot",
                                 )
+                                market = manager.inspect_crypto_market(
+                                    symbol_input
+                                )
+                                st.session_state.pending_asset = {
+                                    **market,
+                                    "sector": None,
+                                    "industry": None,
+                                }
                             else:
-                                # 存储到 session_state
+                                ticker = yf.Ticker(symbol_input)
+                                info = ticker.info
+                                if not info:
+                                    raise ValueError(
+                                        "无法获取资产信息，请检查代码"
+                                    )
                                 st.session_state.pending_asset = {
                                     "symbol": symbol_input,
                                     "name": info.get("displayName")
@@ -63,11 +96,13 @@ def main():
                                     "sector": info.get("sector"),
                                     "industry": info.get("industry"),
                                     "exchange": info.get("exchange"),
+                                    "market_type": None,
                                     "currency": info.get("currency", "USD"),
                                 }
-                                st.success("找到资产信息")
+                            st.success("找到资产信息")
                         except Exception as e:
                             st.error(f"获取信息失败：{str(e)}")
+                            st.caption(f"详细日志：{LOG_FILE}")
 
         with col2:
             if st.button("清空", width="stretch"):
@@ -87,6 +122,7 @@ def main():
                     "板块": asset["sector"] or "-",
                     "行业": asset["industry"] or "-",
                     "交易所": asset["exchange"] or "-",
+                    "市场类型": asset.get("market_type") or "-",
                     "货币": asset["currency"],
                 }
             )
@@ -100,6 +136,7 @@ def main():
                         sector=asset["sector"],
                         industry=asset["industry"],
                         exchange=asset["exchange"],
+                        market_type=asset.get("market_type"),
                         currency=asset["currency"],
                         is_active=True,
                         updated_at=datetime.now(),
@@ -151,6 +188,7 @@ def main():
                     "板块": a.sector or "-",
                     "行业": a.industry or "-",
                     "交易所": a.exchange or "-",
+                    "市场类型": a.market_type or "-",
                     "货币": a.currency or "-",
                     "状态": a.is_active,
                     "更新时间": a.updated_at.strftime("%Y-%m-%d %H:%M")
@@ -340,6 +378,31 @@ def main():
                         try:
                             for sym in st.session_state.update_selection:
                                 # 获取最新信息并更新
+                                current = db_manager.get_symbol_meta(sym)
+                                if (
+                                    current
+                                    and current.asset_type.lower() == "crypto"
+                                ):
+                                    manager = MarketDataManager(
+                                        crypto_exchange=current.exchange
+                                        or "binance",
+                                        market_type=current.market_type
+                                        or "spot",
+                                    )
+                                    market = manager.inspect_crypto_market(sym)
+                                    updated_meta = SymbolMeta(
+                                        symbol=market["symbol"],
+                                        name=market["name"],
+                                        asset_type="Crypto",
+                                        exchange=market["exchange"],
+                                        market_type=market["market_type"],
+                                        currency=market["currency"],
+                                        is_active=current.is_active,
+                                        updated_at=datetime.now(),
+                                    )
+                                    db_manager.update_symbol_meta(updated_meta)
+                                    continue
+
                                 ticker = yf.Ticker(sym)
                                 info = ticker.info
                                 if info:
@@ -354,7 +417,11 @@ def main():
                                         industry=info.get("industry"),
                                         exchange=info.get("exchange"),
                                         currency=info.get("currency", "USD"),
-                                        is_active=True,
+                                        is_active=(
+                                            current.is_active
+                                            if current
+                                            else True
+                                        ),
                                         updated_at=datetime.now(),
                                     )
                                     db_manager.update_symbol_meta(updated_meta)
