@@ -305,5 +305,4 @@ Roadmap 表示方向而非交付承诺，欢迎通过 Issue 讨论设计与优�
 
 ## License
 
-本项目计划以 MIT License 开源。正式发布前请确认仓库根目录中的 `LICENSE`
-文件及版权信息。
+本项目基于 [MIT License](LICENSE) 开源。
