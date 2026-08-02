@@ -1,3 +1,5 @@
+import html
+
 import pandas as pd
 import streamlit as st
 import yfinance as yf
@@ -92,7 +94,7 @@ def symbolmeta_sidebar_fragment(symbol: str) -> None:
 
 @st.fragment
 def macro_data_marquee_fragment() -> None:
-    """显示 FRED 宏观经济数据跑马灯 - 优化版"""
+    """显示宏观经济与市场风险数据跑马灯。"""
 
     # 1. 获取数据
     display_data = get_macro_metrics()
@@ -103,8 +105,16 @@ def macro_data_marquee_fragment() -> None:
 
     # 2. 构造 HTML 列表 (使用列表推导式性能更佳)
     items_list = [
-        f'<div class="macro-item">{icon} <b>{label}</b>: {value:.2f}{unit or ""}</div>'
-        for label, value, unit, icon in display_data
+        (
+            '<div class="macro-item" '
+            f'title="数据源：{html.escape(metric.source)}；'
+            f'序列：{html.escape(metric.series_id)}">'
+            f"{metric.icon} <b>{html.escape(metric.label)}</b>: "
+            f"{metric.value:.2f}{html.escape(metric.unit)}"
+            f'<span class="macro-date">截至 {metric.observation_date}</span>'
+            "</div>"
+        )
+        for metric in display_data
     ]
 
     # 合并内容
@@ -155,6 +165,12 @@ def macro_data_marquee_fragment() -> None:
         .macro-item b {{
             margin-left: 4px;
             margin-right: 2px;
+        }}
+
+        .macro-date {{
+            margin-left: 6px;
+            font-size: 0.72rem;
+            opacity: 0.62;
         }}
 
         /* 关键帧：平滑循环的关键是平移 -50% */

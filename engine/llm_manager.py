@@ -194,11 +194,30 @@ class LLMManager:
         # 处理宏观数据 (Macro)
         macro_data = kwargs.get("macro_data")
         if macro_data:
-            items = (
-                [f"- {k}: {fmt(v)}" for k, v in macro_data.items()]
-                if isinstance(macro_data, dict)
-                else [f"Data: {fmt(macro_data)}"]
-            )
+            if isinstance(macro_data, dict):
+                items = [f"- {k}: {fmt(v)}" for k, v in macro_data.items()]
+            elif isinstance(macro_data, (list, tuple)):
+                items = []
+                for metric in macro_data:
+                    if all(
+                        hasattr(metric, field)
+                        for field in (
+                            "label",
+                            "value",
+                            "unit",
+                            "observation_date",
+                            "source",
+                        )
+                    ):
+                        items.append(
+                            f"- {metric.label}: {fmt(metric.value)}"
+                            f"{metric.unit} (as of {metric.observation_date}; "
+                            f"source: {metric.source})"
+                        )
+                    else:
+                        items.append(f"- {fmt(metric)}")
+            else:
+                items = [f"Data: {fmt(macro_data)}"]
             context_parts.append(
                 "#### Macro Environment:\n" + "\n".join(items)
             )

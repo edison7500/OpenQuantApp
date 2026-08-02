@@ -1,172 +1,301 @@
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List, Tuple
+from __future__ import annotations
 
+import logging
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from io import StringIO
+from threading import Lock
+from typing import Literal, NotRequired, Protocol, TypedDict
+
+import httpx
+import pandas as pd
 import streamlit as st
 from fredapi import Fred
 
-# 1. 增强配置映射，支持不同的计算类型
-METRICS_MAP = {
+logger = logging.getLogger(__name__)
+
+CBOE_HISTORY_URL = (
+    "https://cdn.cboe.com/api/global/us_indices/daily_prices/"
+    "{series_id}_History.csv"
+)
+
+
+class MetricConfig(TypedDict):
+    series_id: str
+    unit: str
+    icon: str
+    calc: Literal["latest", "yoy", "growth_rate", "spread"]
+    source: Literal["fred", "cboe"]
+    compare_series_id: NotRequired[str]
+
+
+@dataclass(frozen=True)
+class MacroMetric:
+    """A display-ready macro observation with provenance and as-of date."""
+
+    label: str
+    value: float
+    unit: str
+    icon: str
+    observation_date: str
+    source: str
+    series_id: str
+
+
+class SeriesSource(Protocol):
+    name: str
+
+    def get_series(self, series_id: str, limit: int) -> pd.Series:
+        """Return up to ``limit`` valid observations in ascending order."""
+
+
+class FredSeriesSource:
+    name = "FRED"
+
+    def __init__(self, fred: Fred) -> None:
+        self._fred = fred
+
+    def get_series(self, series_id: str, limit: int) -> pd.Series:
+        # FRED defaults to ascending order, so a bare limit returns the oldest
+        # observations. Request descending data explicitly, remove missing
+        # releases, then restore chronological order for calculations.
+        request_limit = max(limit * 2, limit + 5)
+        data = self._fred.get_series(
+            series_id,
+            limit=request_limit,
+            sort_order="desc",
+        )
+        if data is None:
+            return pd.Series(dtype="float64")
+        return data.dropna().sort_index().tail(limit)
+
+
+class CboeCsvSeriesSource:
+    name = "Cboe"
+
+    def __init__(self) -> None:
+        self._cache: dict[str, pd.Series] = {}
+        self._lock = Lock()
+
+    def get_series(self, series_id: str, limit: int) -> pd.Series:
+        with self._lock:
+            if series_id not in self._cache:
+                self._cache[series_id] = self._download_series(series_id)
+            data = self._cache[series_id]
+        return data.tail(limit).copy()
+
+    @staticmethod
+    def _download_series(series_id: str) -> pd.Series:
+        response = httpx.get(
+            CBOE_HISTORY_URL.format(series_id=series_id),
+            follow_redirects=True,
+            timeout=15.0,
+        )
+        response.raise_for_status()
+        frame = pd.read_csv(StringIO(response.text))
+        value_column = series_id if series_id in frame else "CLOSE"
+        if "DATE" not in frame or value_column not in frame:
+            raise ValueError(f"Unexpected Cboe CSV schema for {series_id}")
+
+        dates = pd.to_datetime(frame["DATE"], errors="coerce")
+        values = pd.to_numeric(frame[value_column], errors="coerce")
+        data = pd.Series(values.to_numpy(), index=dates, name=series_id)
+        return data.loc[data.index.notna()].dropna().sort_index()
+
+
+METRICS_MAP: dict[str, MetricConfig] = {
     "实际 GDP": {
         "series_id": "GDPC1",
-        "unit": "% QoQ (Annualized)",
+        "unit": "% QoQ（年化）",
         "icon": "🏢",
-        "calc": "growth_rate",  # 季度环比年化增长率
+        "calc": "growth_rate",
+        "source": "fred",
     },
-    "消费者价格指数 (CPI)": {
+    "消费者价格指数（CPI）": {
         "series_id": "CPIAUCSL",
         "unit": "% YoY",
         "icon": "📊",
         "calc": "yoy",
+        "source": "fred",
     },
     "核心 PCE 通胀": {
-        "series_id": "PCEPILFE",  # 剔除食品和能源，美联储的核心锚点
+        "series_id": "PCEPILFE",
         "unit": "% YoY",
         "icon": "🎯",
         "calc": "yoy",
+        "source": "fred",
     },
-    "生产价格指数 (PPI)": {
-        "series_id": "PPIACO",
+    "最终需求 PPI": {
+        "series_id": "PPIFIS",
         "unit": "% YoY",
         "icon": "🏭",
         "calc": "yoy",
+        "source": "fred",
     },
-    "联邦基金利率": {
-        "series_id": "FEDFUNDS",
+    "失业率": {
+        "series_id": "UNRATE",
+        "unit": "%",
+        "icon": "👷",
+        "calc": "latest",
+        "source": "fred",
+    },
+    "有效联邦基金利率": {
+        "series_id": "DFF",
         "unit": "%",
         "icon": "🏦",
         "calc": "latest",
+        "source": "fred",
     },
-    # "消费者价格指数 (CPI)": {
-    #     "series_id": "CPIAUCSL",
-    #     "unit": "% YoY",
-    #     "icon": "📊",
-    #     "calc": "yoy",
-    # },
-    "美元指数": {
+    "广义美元指数": {
         "series_id": "DTWEXBGS",
         "unit": "",
         "icon": "💵",
         "calc": "latest",
+        "source": "fred",
     },
     "10 年期美债": {
         "series_id": "DGS10",
         "unit": "%",
         "icon": "📈",
         "calc": "latest",
+        "source": "fred",
     },
-    "VIX 恐慌指数": {
-        "series_id": "VIXCLS",
+    "10Y-2Y 利差": {
+        "series_id": "T10Y2Y",
+        "unit": "%",
+        "icon": "↔️",
+        "calc": "latest",
+        "source": "fred",
+    },
+    "金融压力指数": {
+        "series_id": "STLFSI4",
+        "unit": "",
+        "icon": "🌡️",
+        "calc": "latest",
+        "source": "fred",
+    },
+    "VIX 指数隐含波动率": {
+        "series_id": "VIX",
         "unit": "",
         "icon": "😱",
         "calc": "latest",
+        "source": "cboe",
+    },
+    "VIXEQ 成分股隐含波动率": {
+        "series_id": "VIXEQ",
+        "unit": "",
+        "icon": "🧩",
+        "calc": "latest",
+        "source": "cboe",
+    },
+    "VIXEQ-VIX 波动率差": {
+        "series_id": "VIXEQ",
+        "compare_series_id": "VIX",
+        "unit": " 点",
+        "icon": "🔀",
+        "calc": "spread",
+        "source": "cboe",
     },
 }
 
 
-# def _fetch_single_metric(
-#     fred: Fred, label: str, config: Dict[str, Any]
-# ) -> Tuple[str, float, str, str] | None:
-#     """单个指标的获取逻辑，封装逻辑以便并行调用"""
-#     series_id = config["series_id"]
-
-#     try:
-#         # 如果是 YoY 计算，至少需要 13 个月的数据
-#         limit = 13 if config["calc"] == "yoy" else 1
-
-#         # 复用你的重试逻辑（此处简略，建议保留原有的 _fetch_fred_series_with_retry）
-#         data = fred.get_series(series_id, limit=limit)
-
-#         if data is None or data.empty:
-#             return None
-
-#         if config["calc"] == "yoy" and len(data) >= 13:
-#             current = data.iloc[-1]
-#             year_ago = data.iloc[-13]
-#             value = ((current - year_ago) / year_ago) * 100
-#         else:
-#             value = data.iloc[-1]
-
-#         return (label, float(value), config["unit"], config["icon"])
-#     except Exception as e:
-#         # 单个指标失败不影响整体，静默处理或记录日志
-#         return None
-
-
 def _fetch_single_metric(
-    fred: Fred, label: str, config: Dict[str, Any]
-) -> Tuple[str, float, str, str] | None:
+    data_source: SeriesSource,
+    label: str,
+    config: MetricConfig,
+) -> MacroMetric | None:
     series_id = config["series_id"]
     calc_type = config["calc"]
+    fetch_limit = 13 if calc_type == "yoy" else 5
 
     try:
-        # 根据计算类型确定获取的数据量
-        # YoY 需要 13 个月，季度环比需要至少 2 个季度
-        fetch_limit = 13 if calc_type == "yoy" else 5
-        data = fred.get_series(series_id, limit=fetch_limit)
-
-        if data is None or data.empty:
+        data = data_source.get_series(series_id, fetch_limit)
+        if data.empty:
             return None
 
-        value = 0.0
-
-        if calc_type == "yoy" and len(data) >= 13:
-            # 同比计算：(当前 / 去年同期 - 1) * 100
-            current = data.iloc[-1]
-            year_ago = data.iloc[-13]
-            value = ((current / year_ago) - 1) * 100
-
-        elif calc_type == "growth_rate" and len(data) >= 2:
-            # 季度环比年化增长率计算 (常用于 GDP)
-            # 公式: ((本季/上季)^4 - 1) * 100
-            current = data.iloc[-1]
-            prev = data.iloc[-2]
-            value = ((pow(current / prev, 4)) - 1) * 100
-
+        observation_date: pd.Timestamp
+        if calc_type == "yoy":
+            if len(data) < 13 or data.iloc[-13] == 0:
+                return None
+            value = ((data.iloc[-1] / data.iloc[-13]) - 1) * 100
+            observation_date = pd.Timestamp(data.index[-1])
+        elif calc_type == "growth_rate":
+            if len(data) < 2 or data.iloc[-2] == 0:
+                return None
+            value = ((data.iloc[-1] / data.iloc[-2]) ** 4 - 1) * 100
+            observation_date = pd.Timestamp(data.index[-1])
+        elif calc_type == "spread":
+            compare_id = config.get("compare_series_id")
+            if not compare_id:
+                return None
+            comparison = data_source.get_series(compare_id, fetch_limit)
+            aligned = pd.concat(
+                [data.rename("primary"), comparison.rename("comparison")],
+                axis=1,
+                join="inner",
+            ).dropna()
+            if aligned.empty:
+                return None
+            value = (
+                aligned.iloc[-1]["primary"] - aligned.iloc[-1]["comparison"]
+            )
+            observation_date = pd.Timestamp(aligned.index[-1])
         else:
-            # 默认取最新值
             value = data.iloc[-1]
+            observation_date = pd.Timestamp(data.index[-1])
 
-        return (label, float(value), config["unit"], config["icon"])
+        return MacroMetric(
+            label=label,
+            value=float(value),
+            unit=config["unit"],
+            icon=config["icon"],
+            observation_date=observation_date.date().isoformat(),
+            source=data_source.name,
+            series_id=(
+                f"{series_id}-{config['compare_series_id']}"
+                if calc_type == "spread"
+                else series_id
+            ),
+        )
     except Exception:
+        logger.warning(
+            "Failed to fetch macro metric %s from %s",
+            series_id,
+            data_source.name,
+            exc_info=True,
+        )
         return None
 
 
 @st.cache_data(ttl=3600)
-def get_macro_metrics() -> List[Tuple[str, float, str, str]]:
-    """
-    使用线程池并行获取 FRED 宏观经济指标。
-    """
-    # 1. 预检 Secrets
+def get_macro_metrics() -> list[MacroMetric]:
+    """Fetch FRED and Cboe macro/market-risk metrics concurrently."""
     if "fred" not in st.secrets or "api_key" not in st.secrets["fred"]:
         st.error("未找到 FRED API Key。请在 .streamlit/secrets.toml 中配置。")
         return []
 
     try:
-        fred = Fred(api_key=st.secrets["fred"]["api_key"])
-        results = []
+        sources: dict[str, SeriesSource] = {
+            "fred": FredSeriesSource(
+                Fred(api_key=st.secrets["fred"]["api_key"])
+            ),
+            "cboe": CboeCsvSeriesSource(),
+        }
 
-        # 2. 使用线程池并行请求 API
         with ThreadPoolExecutor(max_workers=len(METRICS_MAP)) as executor:
-            # 提交所有任务
-            future_to_label = {
+            futures = [
                 executor.submit(
-                    _fetch_single_metric, fred, label, config
-                ): label
+                    _fetch_single_metric,
+                    sources[config["source"]],
+                    label,
+                    config,
+                )
                 for label, config in METRICS_MAP.items()
-            }
-
-            for future in future_to_label:
-                result = future.result()
-                if result:
-                    results.append(result)
-
-        return results
-    except Exception as e:
-        st.error(f"获取宏观数据时发生意外错误: {e}")
+            ]
+            return [
+                result for future in futures if (result := future.result())
+            ]
+    except Exception as exc:
+        logger.exception("Unexpected error while fetching macro metrics")
+        st.error(f"获取宏观数据时发生意外错误: {exc}")
         return []
-
-
-# 在 Streamlit UI 中调用的示例
-# metrics = get_macro_metrics()
-# for label, val, unit, icon in metrics:
-#     st.metric(label=f"{icon} {label}", value=f"{val:.2f} {unit}")

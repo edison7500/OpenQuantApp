@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 from engine.llm_manager import LLMManager
+from engine.macro_manager import MacroMetric
 from engine.llm_provider import LLMConfig
 
 
@@ -53,3 +54,24 @@ def test_refreshes_llm_after_secrets_change():
     assert manager.config == new_config
     assert manager.llm is new_llm
     assert settings.llm is new_llm
+
+
+def test_macro_context_preserves_value_date_and_source():
+    manager = object.__new__(LLMManager)
+    metrics = [
+        MacroMetric(
+            label="失业率",
+            value=4.2,
+            unit="%",
+            icon="👷",
+            observation_date="2026-06-01",
+            source="FRED",
+            series_id="UNRATE",
+        )
+    ]
+
+    context = manager.build_ai_context("TEST", macro_data=metrics)
+
+    assert "- 失业率: 4.20%" in context
+    assert "as of 2026-06-01" in context
+    assert "source: FRED" in context
