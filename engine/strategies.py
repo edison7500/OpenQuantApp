@@ -33,8 +33,8 @@ def identify_fvg_vectorized(df: pd.DataFrame) -> pd.DataFrame:
 
     df["fvg_type"] = 0  #
     # 使用 shift(-1) 标记在中间那根 K 线
-    df.loc[bullish_mask.shift(-1).fillna(False), "fvg_type"] = 1  #
-    df.loc[bearish_mask.shift(-1).fillna(False), "fvg_type"] = -1  #
+    df.loc[bullish_mask.shift(-1, fill_value=False), "fvg_type"] = 1  #
+    df.loc[bearish_mask.shift(-1, fill_value=False), "fvg_type"] = -1  #
 
     return df
 

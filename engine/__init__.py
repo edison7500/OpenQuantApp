@@ -9,6 +9,26 @@ from database.connections.arcticdb_conn import ArcticDBConnection
 from .analytics import AnalyticsEngine
 
 
+WARMUP_DAYS = {
+    "1h": 30,
+    "D": 240,
+    "W": 900,
+    "M": 3650,
+}
+
+
+def get_benchmark_symbol(symbol: str, asset_type: str) -> str | None:
+    """返回本地相对强弱计算使用的默认市场基准。"""
+    normalized_type = asset_type.lower()
+    if normalized_type == "crypto":
+        benchmark = "BTC/USDT"
+    elif normalized_type in {"equity", "etf", "index"}:
+        benchmark = "SPY"
+    else:
+        return None
+    return None if symbol.upper() == benchmark else benchmark
+
+
 @st.cache_data(ttl=3600)
 def load_and_process_data_with_range(
     symbol, start_date, end_date, timeframe="D", rsi_length=14
@@ -21,7 +41,7 @@ def load_and_process_data_with_range(
 
     # 1. 计算缓冲期 (Buffer)
     # 假设周末/节假日停盘，往前推 rsi_length * 2 天作为缓冲，确保指标能在 start_date 算出来
-    buffer_days = rsi_length * 2
+    buffer_days = WARMUP_DAYS.get(timeframe, WARMUP_DAYS["D"])
     fetch_start = start_date - datetime.timedelta(days=buffer_days)
 
     try:
@@ -178,8 +198,9 @@ def load_and_process_full_pipeline(
     ac = st.connection("arcticdb", type=ArcticDBConnection)  #
     lib = ac.get_library(timeframe)  #
 
-    # 增加缓冲期拉取数据
-    fetch_start = start_date - datetime.timedelta(days=30)
+    # 按周期预取足够的历史 K 线，保证 EMA50、MACD、ADX 等稳定。
+    warmup_days = WARMUP_DAYS.get(timeframe, WARMUP_DAYS["D"])
+    fetch_start = start_date - datetime.timedelta(days=warmup_days)
     query_start = pd.to_datetime(fetch_start).tz_localize("UTC")
     query_end = pd.to_datetime(end_date).tz_localize("UTC")
 
@@ -188,12 +209,25 @@ def load_and_process_full_pipeline(
     except Exception as e:  # noqa
         return pd.DataFrame()
 
+    benchmark_close = None
+    benchmark_symbol = get_benchmark_symbol(symbol, asset_type)
+    if benchmark_symbol:
+        try:
+            benchmark_close = lib.read(
+                benchmark_symbol,
+                date_range=(query_start, query_end),
+            ).data["Close"]
+        except Exception:  # 基准尚未同步时不影响主图
+            benchmark_close = None
+
     # 执行拆分后的组件逻辑
     df = AnalyticsEngine.process(
         df,
         asset_type=asset_type,
         include_signals=True,
         rsi_length=rsi_length,
+        timeframe=timeframe,
+        benchmark_close=benchmark_close,
     )
     # df = identify_fvg_vectorized(df)
     # df = identify_trading_signals(df)
@@ -206,4 +240,13 @@ def load_and_process_full_pipeline(
         df.index.tz_convert("UTC")
         <= pd.to_datetime(end_date).tz_localize("UTC")
     )
-    return df.loc[mask]
+    result = df.loc[mask].copy()
+    if "relative_strength" in result.columns:
+        first_valid = result["relative_strength"].first_valid_index()
+        if first_valid is not None:
+            baseline = result.loc[first_valid, "relative_strength"]
+            if baseline:
+                result["relative_strength"] = (
+                    result["relative_strength"] / baseline * 100
+                )
+    return result

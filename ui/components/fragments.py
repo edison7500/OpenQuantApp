@@ -395,7 +395,12 @@ def news_sidebar_fragment(symbol: str) -> None:
                 st.link_button("查看全文", row["url"], icon="🔗")
 
 
-def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
+def ai_analysis_sidebar_fragment(
+    symbol: str,
+    hist: pd.DataFrame,
+    asset_type: str = "equity",
+    market_sentiment=None,
+) -> None:
     """在右侧边栏显示 AI 智能分析报告。
 
     LLM 请求可能持续数分钟，因此不在 Streamlit fragment 内执行，
@@ -404,7 +409,8 @@ def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
     st.divider()
     st.subheader("🤖 AI 智能推理")
 
-    result_key = f"ai_analysis_result_{symbol}"
+    normalized_asset_type = asset_type.lower()
+    result_key = f"ai_analysis_result_{normalized_asset_type}_{symbol}"
     button_label = (
         "🔄 重新生成量化分析报告"
         if result_key in st.session_state
@@ -412,25 +418,35 @@ def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
     )
 
     if st.button(button_label, key=f"ai_analyze_{symbol}"):
-        with st.spinner("AI 正在综合财务、新闻及宏观数据推理中..."):
+        dimensions = (
+            "行情、新闻及宏观"
+            if normalized_asset_type == "crypto"
+            else "财务、新闻及宏观"
+        )
+        with st.spinner(f"AI 正在综合{dimensions}数据推理中..."):
             try:
                 # 1. 准备技术指标数据
                 tech_data = hist if not hist.empty else None
 
                 # 2. 准备财务数据 (使用缓存函数)
-                info = get_ticker_info(symbol)
-                financial_data = {
-                    "ROE": info.get("returnOnEquity"),
-                    "D/E Ratio": info.get("debtToEquity"),
-                    "Profit Margin": info.get("profitMargins"),
-                    "Op. Margin": info.get("operatingMargins"),
-                    "Div. Yield": info.get("dividendYield"),
-                    "Trailing EPS": info.get("trailingEps"),
-                    "Forward EPS": info.get("forwardEps"),
-                }
+                financial_data = None
+                if normalized_asset_type != "crypto":
+                    info = get_ticker_info(symbol)
+                    financial_data = {
+                        "ROE": info.get("returnOnEquity"),
+                        "D/E Ratio": info.get("debtToEquity"),
+                        "Profit Margin": info.get("profitMargins"),
+                        "Op. Margin": info.get("operatingMargins"),
+                        "Div. Yield": info.get("dividendYield"),
+                        "Trailing EPS": info.get("trailingEps"),
+                        "Forward EPS": info.get("forwardEps"),
+                    }
 
                 # 3. 准备最新新闻摘要
-                news_df = fetch_and_analyze(symbol)
+                news_df = fetch_and_analyze(
+                    symbol,
+                    asset_type=normalized_asset_type,
+                )
 
                 # 4. 准备宏观数据
                 macro_metrics = get_macro_metrics()
@@ -438,10 +454,12 @@ def ai_analysis_sidebar_fragment(symbol: str, hist: pd.DataFrame) -> None:
                 # 调用 LLM 管理器进行分析
                 analysis_result = llm_manager.analyze_symbol(
                     symbol=symbol,
+                    asset_type=normalized_asset_type,
                     technical_data=tech_data,
                     financial_data=financial_data,
                     news_data=news_df,
                     macro_data=macro_metrics,
+                    market_sentiment=market_sentiment,
                 )
                 st.session_state[result_key] = analysis_result
             except Exception as e:

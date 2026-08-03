@@ -16,20 +16,22 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
     if use_ha:
         hist = calculate_heikin_ashi(hist)
 
-    # --- 狀態管理：記住當前選中的 Tab ---
-    state_key = f"active_tab_{symbol}"
-    if state_key not in st.session_state:
-        st.session_state[state_key] = "🌀 趨勢通道 (BBands)"
-
     # 標籤定義
     tabs_titles = [
         "🌀 趨勢通道 (BBands)",
-        "📈 指數平滑動態 (MACD)",
+        "📈 趨勢強度 (MACD/ADX)",
         "📊 強弱指標 (RSI)",
         "📊 成交量分析 (RVOL)",
         "💻 策略執行終端",
-        "📉 風險回撤分析",
+        "📉 波動與回撤 (ATR)",
     ]
+    if "relative_strength" in hist.columns:
+        tabs_titles.insert(4, "⚖️ 相對市場強弱 (RS)")
+
+    # --- 狀態管理：記住當前選中的 Tab，并迁移旧版标签 ---
+    state_key = f"active_tab_{symbol}"
+    if st.session_state.get(state_key) not in tabs_titles:
+        st.session_state[state_key] = tabs_titles[0]
 
     # 使用 segmented_control 替代 st.tabs 以保留狀態 (Streamlit 1.35+)
     selected_tab = st.segmented_control(
@@ -50,7 +52,7 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
         )
 
     # 2. MACD - 判斷中長期趨勢方向與金叉/死叉
-    elif selected_tab == "📈 指數平滑動態 (MACD)":
+    elif selected_tab == "📈 趨勢強度 (MACD/ADX)":
         fig_macd = ChartFactory.build_advanced_view(
             hist, symbol, view_type="MACD", use_ha=use_ha
         )
@@ -62,11 +64,8 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
 
     # 3. RSI - 判斷短期是否超買或超賣
     elif selected_tab == "📊 強弱指標 (RSI)":
-        show_kdj = st.checkbox(
-            "📈 显示 KDJ 指标", value=False, key=f"kdj_{symbol}"
-        )
         fig_rsi = ChartFactory.build_view(
-            hist, symbol, view_type="RSI", use_ha=use_ha, show_kdj=show_kdj
+            hist, symbol, view_type="RSI", use_ha=use_ha
         )
         st.plotly_chart(
             fig_rsi, width="stretch", config={"displayModeBar": False}
@@ -74,7 +73,25 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
 
     # 4. RVOL - 驗證當前價格波動是否有成交量支持
     elif selected_tab == "📊 成交量分析 (RVOL)":
-        fig = ChartFactory.build_view(hist, symbol, "ROVL", use_ha=use_ha)
+        fig = ChartFactory.build_view(hist, symbol, "RVOL", use_ha=use_ha)
+        st.plotly_chart(
+            fig,
+            width="stretch",
+            config={"displayModeBar": False},
+        )
+
+    elif selected_tab == "⚖️ 相對市場強弱 (RS)":
+        latest_change = hist["rs_change"].dropna()
+        if not latest_change.empty:
+            st.metric("20 期相对表现", f"{latest_change.iloc[-1]:+.2f}%")
+        benchmark = "BTC/USDT" if "/" in symbol else "SPY"
+        st.caption(f"曲线上升表示跑赢基准 {benchmark}，下降表示跑输。")
+        fig = ChartFactory.build_view(
+            hist,
+            symbol,
+            "RelativeStrength",
+            use_ha=use_ha,
+        )
         st.plotly_chart(
             fig,
             width="stretch",
@@ -92,7 +109,7 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
         )
 
     # 6. 風險回撤 - 最後檢查風險承受度
-    elif selected_tab == "📉 風險回撤分析":
+    elif selected_tab == "📉 波動與回撤 (ATR)":
         drawdown_series = calculate_drawdown(
             hist["Close"].pct_change(fill_method=None)
         )
@@ -101,12 +118,17 @@ def render_analysis_tabs(hist, symbol, use_ha=False):
             drawdown_series.iloc[-1] * 100,
         )
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
         c1.metric("最大回撤", f"{max_dd:.2f}%")
         c2.metric("當前回撤", f"{current_dd:.2f}%")
+        latest_atr = hist["atr_pct"].dropna()
+        c3.metric(
+            "当前 ATR%",
+            f"{latest_atr.iloc[-1]:.2f}%" if not latest_atr.empty else "-",
+        )
 
         # fig_drawdown = chart.create_drawdown_chart(hist, symbol)
-        fig = ChartFactory.build_view(hist, symbol, "DrawDown")
+        fig = ChartFactory.build_view(hist, symbol, "DrawDown", use_ha=use_ha)
         st.plotly_chart(
             fig,
             width="stretch",
