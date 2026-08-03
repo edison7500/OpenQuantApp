@@ -137,33 +137,7 @@ class ChartFactory:
             )
 
     @staticmethod
-    def add_cci(fig, df, row=2):
-        """组件：绘制 CCI (顺势指标)"""
-        cci_col = [c for c in df.columns if "CCI" in c][0]
-
-        # 绘制 CCI 主线
-        fig.add_trace(
-            go.Scatter(
-                x=df.index,
-                y=df[cci_col],
-                name="CCI",
-                line=dict(color="#00D2FF", width=1.5),
-            ),
-            row=row,
-            col=1,
-        )
-
-        # 添加边界参考线 (+100, 0, -100)
-        fig.add_hline(
-            y=100, line_dash="dash", line_color="#FF4500", row=row, col=1
-        )
-        fig.add_hline(y=0, line_dash="dot", line_color="gray", row=row, col=1)
-        fig.add_hline(
-            y=-100, line_dash="dash", line_color="#00FF7F", row=row, col=1
-        )
-
-    @staticmethod
-    def add_rovl(fig, df, symbol, row=2, col=1) -> None:
+    def add_volume_analysis(fig, df, symbol) -> None:
         sig_df = df[df["breakout_signal"]]
 
         fig.add_trace(
@@ -184,20 +158,33 @@ class ChartFactory:
             row=1,
             col=1,
         )
-        # --- 副图：RVOL 柱状图 ---
-        colors = ["#FFA500" if v > 2.0 else "#636EFA" for v in df["rvol"]]
+        volume_colors = [
+            "#26a69a" if close >= open_ else "#ef5350"
+            for open_, close in zip(df["Open"], df["Close"], strict=False)
+        ]
         fig.add_trace(
-            go.Bar(x=df.index, y=df["rvol"], marker_color=colors, name="RVOL"),
+            go.Bar(
+                x=df.index,
+                y=df["Volume"],
+                marker_color=volume_colors,
+                name="成交量",
+            ),
             row=2,
             col=1,
         )
 
-        # 辅助线
-        fig.add_hline(
-            y=1.0, line_dash="dash", line_color="gray", row=row, col=col
+        # --- 副图：RVOL 柱状图 ---
+        colors = ["#FFA500" if v > 2.0 else "#636EFA" for v in df["rvol"]]
+        fig.add_trace(
+            go.Bar(x=df.index, y=df["rvol"], marker_color=colors, name="RVOL"),
+            row=3,
+            col=1,
         )
+
+        # 辅助线
+        fig.add_hline(y=1.0, line_dash="dash", line_color="gray", row=3, col=1)
         fig.update_layout(
-            title=f"{symbol} - ROVL 视图",
+            title=f"{symbol} - 成交量 / RVOL 视图",
             template="plotly_white",
             xaxis_rangeslider_visible=False,
         )
@@ -241,7 +228,7 @@ class ChartFactory:
                 )
 
     @staticmethod
-    def add_drawdown(fig, df, symbol) -> None:
+    def add_drawdown(fig, df, symbol, row=2) -> None:
         # 计算回撤
         cumulative = df["Close"] / df["Close"].iloc[0]  # 归一化净值
         running_max = cumulative.cummax()
@@ -260,8 +247,61 @@ class ChartFactory:
                 fillcolor="rgba(255, 0, 0, 0.3)",  # 半透明红
                 name="Drawdown %",
             ),
-            row=2,
+            row=row,
             col=1,
+        )
+
+    @staticmethod
+    def add_atr(fig, df, row=2) -> None:
+        """绘制可跨资产比较的 ATR 百分比。"""
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["atr_pct"],
+                name="ATR %",
+                line=dict(color="#FFB347", width=1.5),
+            ),
+            row=row,
+            col=1,
+        )
+
+    @staticmethod
+    def add_adx(fig, df, row=3) -> None:
+        """绘制趋势强度及方向线。"""
+        for column, name, color in (
+            ("adx_main", "ADX", "#FFD700"),
+            ("dmp_main", "+DI", "#26a69a"),
+            ("dmn_main", "-DI", "#ef5350"),
+        ):
+            fig.add_trace(
+                go.Scatter(
+                    x=df.index,
+                    y=df[column],
+                    name=name,
+                    line=dict(color=color, width=1.4),
+                ),
+                row=row,
+                col=1,
+            )
+        fig.add_hline(
+            y=25, line_dash="dash", line_color="gray", row=row, col=1
+        )
+
+    @staticmethod
+    def add_relative_strength(fig, df, row=2) -> None:
+        """绘制相对市场基准、起点为 100 的强弱曲线。"""
+        fig.add_trace(
+            go.Scatter(
+                x=df.index,
+                y=df["relative_strength"],
+                name="相对强弱",
+                line=dict(color="#7FDBFF", width=2),
+            ),
+            row=row,
+            col=1,
+        )
+        fig.add_hline(
+            y=100, line_dash="dash", line_color="gray", row=row, col=1
         )
 
     @staticmethod
@@ -290,36 +330,54 @@ class ChartFactory:
         view_type: str = "MACD",
         height: int = 600,
         use_ha: bool = False,
-        show_kdj: bool = False,
     ):
         """
         工厂入口：根据类型组装图表
         """
         # 1. 动态确定布局
-        if view_type == "RSI" and show_kdj:
+        if view_type in ["RVOL", "DrawDown"]:
             rows = 3
             heights = [0.6, 0.2, 0.2]
-        elif view_type in ["MACD", "RSI", "CCI", "ROVL", "DrawDown", "BBands"]:
+        elif view_type in [
+            "MACD",
+            "RSI",
+            "BBands",
+            "RelativeStrength",
+        ]:
             rows = 2
             heights = [0.7, 0.3]
         else:
             rows = 1
             heights = [1.0]
+        if rows == 3:
+            height = max(height, 720)
 
         fig = ChartFactory._create_base(rows=rows, heights=heights)
         ChartFactory.add_candlestick(fig, df, use_ha=use_ha)
-        ChartFactory.add_signal_markers(fig, df)
 
         if view_type == "MACD":
             # 动态寻找 MACD 相关列
             hist = [c for c in df.columns if "MACDh" in c][0]
             line = [c for c in df.columns if "MACD_" in c][0]
+            signal = [c for c in df.columns if "MACDs_" in c][0]
+
+            ChartFactory.add_signal_markers(fig, df)
 
             fig.add_trace(
                 go.Bar(x=df.index, y=df[hist], name="柱状图"), row=2, col=1
             )
             fig.add_trace(
                 go.Scatter(x=df.index, y=df[line], name="MACD线"), row=2, col=1
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=df.index,
+                    y=df[signal],
+                    name="Signal线",
+                    line=dict(dash="dash"),
+                ),
+                row=2,
+                col=1,
             )
 
         elif view_type == "RSI":
@@ -344,65 +402,18 @@ class ChartFactory:
                 y=30, line_dash="dash", line_color="green", row=2, col=1
             )
 
-            # Row 3: KDJ (如果开启)
-            if show_kdj:
-                # J线: 亮色、加粗
-                fig.add_trace(
-                    go.Scatter(
-                        x=df.index,
-                        y=df["J"],
-                        name="J",
-                        line=dict(color="#FFFFFF", width=2),
-                    ),
-                    row=3,
-                    col=1,
-                )
-                # K线: 暗色、细线/虚线
-                fig.add_trace(
-                    go.Scatter(
-                        x=df.index,
-                        y=df["K"],
-                        name="K",
-                        line=dict(
-                            color="rgba(0, 255, 127, 0.5)", width=1, dash="dot"
-                        ),
-                    ),
-                    row=3,
-                    col=1,
-                )
-                # D线: 暗色、细线/虚线
-                fig.add_trace(
-                    go.Scatter(
-                        x=df.index,
-                        y=df["D"],
-                        name="D",
-                        line=dict(
-                            color="rgba(255, 69, 0, 0.5)", width=1, dash="dash"
-                        ),
-                    ),
-                    row=3,
-                    col=1,
-                )
-                # KDJ 警戒线
-                fig.add_hline(
-                    y=80, line_dash="dot", line_color="gray", row=3, col=1
-                )
-                fig.add_hline(
-                    y=20, line_dash="dot", line_color="gray", row=3, col=1
-                )
-
-        elif view_type == "CCI":
-            # 调用新封装的 CCI 方法
-            ChartFactory.add_cci(fig, df, row=2)
-
-        elif view_type == "ROVL":
-            ChartFactory.add_rovl(fig, df, symbol)
+        elif view_type == "RVOL":
+            ChartFactory.add_volume_analysis(fig, df, symbol)
 
         elif view_type == "FVG & BAG":
             ChartFactory.add_trading_terminal(fig, df, symbol)
 
         elif view_type == "DrawDown":
-            ChartFactory.add_drawdown(fig, df, symbol)
+            ChartFactory.add_atr(fig, df, row=2)
+            ChartFactory.add_drawdown(fig, df, symbol, row=3)
+
+        elif view_type == "RelativeStrength":
+            ChartFactory.add_relative_strength(fig, df, row=2)
 
         elif view_type == "BBands":
             bb_u = [c for c in df.columns if c.startswith("BBU_")][0]
@@ -416,7 +427,9 @@ class ChartFactory:
                     y=df[bb_u],
                     name="Upper Band",
                     line=dict(color="rgba(173, 216, 230, 0.8)", dash="dash"),
-                )
+                ),
+                row=1,
+                col=1,
             )
             fig.add_trace(
                 go.Scatter(
@@ -424,7 +437,9 @@ class ChartFactory:
                     y=df[bb_m],
                     name="Middle Band",
                     line=dict(color="rgba(255, 165, 0, 0.8)", dash="dot"),
-                )
+                ),
+                row=1,
+                col=1,
             )
             fig.add_trace(
                 go.Scatter(
@@ -434,7 +449,9 @@ class ChartFactory:
                     line=dict(color="rgba(173, 216, 230, 0.8)", dash="dash"),
                     fill="tonexty",
                     fillcolor="rgba(173, 216, 230, 0.1)",
-                )
+                ),
+                row=1,
+                col=1,
             )  # 添加通道填充色
 
             # 新增：绘制波动率深度 (BB Width)
@@ -463,7 +480,7 @@ class ChartFactory:
         fig = ChartFactory._create_base(rows=rows, heights=heights)
         ChartFactory.add_candlestick(fig, df, use_ha=use_ha)
 
-        # 繪製三條均線
+        # 保留两条不同周期均线，并加入成交成本参考。
         # SMA: 白色實線
         fig.add_trace(
             go.Scatter(
@@ -486,13 +503,11 @@ class ChartFactory:
             row=1,
             col=1,
         )
-        # WMA: 紫色細線
-        wma_col = [c for c in df.columns if "WMA_" in c][0]
         fig.add_trace(
             go.Scatter(
                 x=df.index,
-                y=df[wma_col],
-                name="WMA (加權)",
+                y=df["vwap_main"],
+                name="VWAP",
                 line=dict(color="#E066FF", width=1, dash="dashdot"),
             ),
             row=1,
@@ -502,17 +517,13 @@ class ChartFactory:
         # 加入交叉信號標註
         ChartFactory.add_ma_signals(fig, df)
 
-        # 2. 绘制副图
-        if include_osc:
-            # Row 2: RSI (看超买超卖)
-            # ChartFactory.add_rsi(fig, df, row=2)
-            # Row 3: CCI (看动能突破)
-            ChartFactory.add_cci(fig, df, row=3)
-
         if view_type == "MACD":
             # 动态寻找 MACD 相关列
             hist = [c for c in df.columns if "MACDh" in c][0]
             line = [c for c in df.columns if "MACD_" in c][0]
+            signal = [c for c in df.columns if "MACDs_" in c][0]
+
+            ChartFactory.add_signal_markers(fig, df)
 
             fig.add_trace(
                 go.Bar(x=df.index, y=df[hist], name="柱状图"), row=2, col=1
@@ -520,6 +531,18 @@ class ChartFactory:
             fig.add_trace(
                 go.Scatter(x=df.index, y=df[line], name="MACD线"), row=2, col=1
             )
+            fig.add_trace(
+                go.Scatter(
+                    x=df.index,
+                    y=df[signal],
+                    name="Signal线",
+                    line=dict(dash="dash"),
+                ),
+                row=2,
+                col=1,
+            )
+            if include_osc:
+                ChartFactory.add_adx(fig, df, row=3)
 
         fig.update_layout(
             title=f"{symbol} - {view_type} 分析",

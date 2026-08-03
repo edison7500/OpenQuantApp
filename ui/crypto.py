@@ -1,10 +1,14 @@
 import pandas as pd
 import streamlit as st
 
+from api.fear_greed import FearGreedError
 from database.resource import get_arctic_library, get_symbol_meta
 from engine import load_and_process_full_pipeline
 from sync_engine import DataSyncEngine
 from ui.components.analysis_tabs import render_analysis_tabs
+from ui.components.etf_flows import render_btc_etf_flows
+from ui.components.fear_greed import load_fear_greed, render_fear_greed
+from ui.components.fragments import ai_analysis_sidebar_fragment
 from ui.components.sidebar import render_common_sidebar
 from utils.human_readable import format_human_readable
 
@@ -56,6 +60,13 @@ def main():
     timeframe = params["timeframe"]
     rsi_length = params["rsi_length"]
 
+    fear_greed = None
+    fear_greed_error = None
+    try:
+        fear_greed = load_fear_greed()
+    except FearGreedError as exc:
+        fear_greed_error = str(exc)
+
     with st.sidebar:
         if st.button("⬇️ 同步当前 Crypto 行情", type="primary"):
             meta = get_symbol_meta(symbol)
@@ -71,6 +82,7 @@ def main():
                     st.error(f"同步失败：{exc}")
 
     col_main, col_summary = st.columns([3, 1])
+    hist = pd.DataFrame()
     with col_main:
         if symbol and len(date_selection) == 2:
             start_date, end_date = date_selection
@@ -94,8 +106,21 @@ def main():
         else:
             st.info("请选择完整的开始和结束日期范围。")
 
+        if symbol.upper().startswith("BTC/"):
+            render_btc_etf_flows()
+
     with col_summary:
         _render_market_summary(symbol, timeframe)
+        if fear_greed is not None:
+            render_fear_greed(fear_greed)
+        elif fear_greed_error:
+            st.warning(f"贪婪指数暂不可用：{fear_greed_error}")
+        ai_analysis_sidebar_fragment(
+            symbol,
+            hist,
+            asset_type="crypto",
+            market_sentiment=fear_greed,
+        )
 
 
 if __name__ == "__main__":

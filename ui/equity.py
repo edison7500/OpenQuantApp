@@ -79,7 +79,7 @@ def main():
                 )
             if not hist.empty:
                 # --- Tabs 布局 ---
-                render_analysis_tabs(hist, symbol)
+                render_analysis_tabs(hist, symbol, use_ha=params["use_ha"])
 
                 # --- 新增：主视图下方的 Grid 新闻区 ---
                 news_grid_fragment(symbol)

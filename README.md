@@ -85,6 +85,9 @@ api_key = "YOUR_FINNHUB_API_KEY"
 [fred]
 api_key = "YOUR_FRED_API_KEY"
 
+[sosovalue]
+api_key = "YOUR_SOSOVALUE_API_KEY"
+
 [telegram]
 token = "YOUR_TELEGRAM_BOT_TOKEN"
 chat_id = "YOUR_TELEGRAM_CHAT_ID"
